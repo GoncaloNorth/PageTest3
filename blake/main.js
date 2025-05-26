@@ -5,9 +5,8 @@ const ctx1 = canvas1.getContext('2d');
 const ctx2 = canvas2.getContext('2d');
 
 const canvasSize = 600;
-const segmentSize = 10;
-const drawSize = segmentSize * 2;
-const moveInterval = 80;
+const segmentSize = 20; // game grid and visuals both scaled up
+const moveInterval = 100;
 
 let lastUpdate = Date.now();
 let countdown = 3;
@@ -72,10 +71,10 @@ function createSnakeGame(ctx, controls, initialDirection) {
       ctx.clearRect(0, 0, canvasSize, canvasSize);
       ctx.fillStyle = "#4caf50";
       for (let part of this.segments) {
-        ctx.fillRect(part.x, part.y, drawSize, drawSize);
+        ctx.fillRect(part.x, part.y, segmentSize, segmentSize);
       }
       ctx.fillStyle = "#e53935";
-      ctx.fillRect(this.food.x, this.food.y, drawSize, drawSize);
+      ctx.fillRect(this.food.x, this.food.y, segmentSize, segmentSize);
       ctx.fillStyle = "#000";
       ctx.font = "16px sans-serif";
       ctx.fillText("Score: " + this.score, 10, canvasSize - 10);
@@ -148,4 +147,5 @@ function gameLoop() {
 player1.init();
 player2.init();
 gameLoop();
+
 
