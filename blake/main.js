@@ -71,11 +71,11 @@ function createGame(ctx, controls, initialDirection) {
 
       ctx.fillStyle = "#4caf50";
       for (let part of this.snake) {
-        ctx.fillRect(part.x * gridSize, part.y * gridSize, gridSize - 2, gridSize - 2);
+        ctx.fillRect(part.x * gridSize, part.y * gridSize, gridSize, gridSize);
       }
 
       ctx.fillStyle = "#e53935";
-      ctx.fillRect(this.food.x * gridSize, this.food.y * gridSize, gridSize - 2, gridSize - 2);
+      ctx.fillRect(this.food.x * gridSize, this.food.y * gridSize, gridSize, gridSize);
 
       ctx.fillStyle = "#000";
       ctx.font = "16px sans-serif";
@@ -145,10 +145,12 @@ function gameLoop() {
   player2.update();
   player1.draw(ctx1);
   player2.draw(ctx2);
+
   setTimeout(() => {
-  requestAnimationFrame(gameLoop);
-}, 150);
+    requestAnimationFrame(gameLoop);
+  }, 150); // adjust this number for speed (lower = faster)
 }
 
 gameLoop();
+
 
