@@ -4,98 +4,76 @@ const ctx1 = canvas1.getContext('2d');
 const ctx2 = canvas2.getContext('2d');
 
 const canvasSize = 300;
-const snakeSpeed = 2;
 const segmentSize = 20;
-const initialLength = 1;
+const moveInterval = 150;
+let lastUpdate = Date.now();
 let countdown = 3;
 let countdownActive = true;
 let countdownStartTime = Date.now();
 
 function createSnakeGame(ctx, controls, initialDirection) {
-  const snake = {
+  return {
     segments: [],
     dir: { x: initialDirection.x, y: initialDirection.y },
     nextDir: { x: initialDirection.x, y: initialDirection.y },
-    food: {
-      x: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize,
-      y: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize
-    },
+    food: spawnFood(),
     score: 0,
     gameOver: false,
-    controls: controls,
+    controls,
     init() {
-      this.segments = [{
-        x: 100,
-        y: 100
-      }];
+      this.segments = [
+        { x: 5 * segmentSize, y: 5 * segmentSize }
+      ];
     },
     reset() {
       this.dir = { x: initialDirection.x, y: initialDirection.y };
       this.nextDir = { x: initialDirection.x, y: initialDirection.y };
       this.score = 0;
       this.gameOver = false;
-      this.food = {
-        x: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize,
-        y: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize
-      };
+      this.food = spawnFood();
       this.init();
     },
-
     update() {
       if (this.gameOver || countdownActive) return;
-
-      if (
-        (this.nextDir.x !== -this.dir.x || this.dir.x === 0) &&
-        (this.nextDir.y !== -this.dir.y || this.dir.y === 0)
-      ) {
+      if ((this.nextDir.x !== -this.dir.x || this.dir.x === 0) &&
+          (this.nextDir.y !== -this.dir.y || this.dir.y === 0)) {
         this.dir = { ...this.nextDir };
       }
 
-      const head = { ...this.segments[0] };
-      head.x += this.dir.x * snakeSpeed;
-      head.y += this.dir.y * snakeSpeed;
+      const head = {
+        x: this.segments[0].x + this.dir.x * segmentSize,
+        y: this.segments[0].y + this.dir.y * segmentSize
+      };
 
       if (head.x < 0 || head.x >= canvasSize || head.y < 0 || head.y >= canvasSize) {
         this.gameOver = true;
         return;
       }
 
-      this.segments.pop();
-      this.segments.unshift(head);
-
-      if (this.segments.length > 1) {
-        for (let i = 1; i < this.segments.length; i++) {
-          const part = this.segments[i];
-          if (Math.abs(part.x - head.x) < segmentSize / 2 &&
-              Math.abs(part.y - head.y) < segmentSize / 2) {
-            this.gameOver = true;
-          }
+      for (let part of this.segments) {
+        if (head.x === part.x && head.y === part.y) {
+          this.gameOver = true;
+          return;
         }
       }
 
-      if (
-        Math.abs(head.x - this.food.x) < segmentSize &&
-        Math.abs(head.y - this.food.y) < segmentSize
-      ) {
+      this.segments.unshift(head);
+
+      if (head.x === this.food.x && head.y === this.food.y) {
         this.score++;
-        this.segments.push({ ...this.segments[this.segments.length - 1] });
-        this.food = {
-          x: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize,
-          y: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize
-        };
+        this.food = spawnFood();
+      } else {
+        this.segments.pop();
       }
     },
-        draw(ctx) {
+    draw(ctx) {
       ctx.clearRect(0, 0, canvasSize, canvasSize);
-
       ctx.fillStyle = "#4caf50";
-      for (const part of this.segments) {
+      for (let part of this.segments) {
         ctx.fillRect(part.x, part.y, segmentSize, segmentSize);
       }
-
       ctx.fillStyle = "#e53935";
       ctx.fillRect(this.food.x, this.food.y, segmentSize, segmentSize);
-
       ctx.fillStyle = "#000";
       ctx.font = "16px sans-serif";
       ctx.fillText("Score: " + this.score, 10, 290);
@@ -103,7 +81,6 @@ function createSnakeGame(ctx, controls, initialDirection) {
         ctx.font = "20px sans-serif";
         ctx.fillText("Game Over", 80, 150);
       }
-
       if (countdownActive) {
         ctx.font = "40px sans-serif";
         ctx.fillText(countdown.toString(), 120, 150);
@@ -117,23 +94,22 @@ function createSnakeGame(ctx, controls, initialDirection) {
       else if (e.code === this.controls.right) this.nextDir = { x: 1, y: 0 };
     }
   };
+}
 
-  snake.init();
-  return snake;
+function spawnFood() {
+  const gridCount = canvasSize / segmentSize;
+  return {
+    x: Math.floor(Math.random() * gridCount) * segmentSize,
+    y: Math.floor(Math.random() * gridCount) * segmentSize
+  };
 }
 
 const player1 = createSnakeGame(ctx1, {
-  up: "KeyW",
-  down: "KeyS",
-  left: "KeyA",
-  right: "KeyD"
+  up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD"
 }, { x: 1, y: 0 });
 
 const player2 = createSnakeGame(ctx2, {
-  up: "ArrowUp",
-  down: "ArrowDown",
-  left: "ArrowLeft",
-  right: "ArrowRight"
+  up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight"
 }, { x: 1, y: 0 });
 
 document.addEventListener("keydown", (e) => {
@@ -151,20 +127,22 @@ document.addEventListener("keydown", (e) => {
 function updateCountdown() {
   const elapsed = Math.floor((Date.now() - countdownStartTime) / 1000);
   countdown = 3 - elapsed;
-  if (countdown <= 0) {
-    countdownActive = false;
-  }
+  if (countdown <= 0) countdownActive = false;
 }
 
 function gameLoop() {
+  const now = Date.now();
   if (countdownActive) updateCountdown();
-
-  player1.update();
-  player2.update();
+  if (now - lastUpdate >= moveInterval && !countdownActive) {
+    player1.update();
+    player2.update();
+    lastUpdate = now;
+  }
   player1.draw(ctx1);
   player2.draw(ctx2);
   requestAnimationFrame(gameLoop);
 }
 
+player1.init();
+player2.init();
 gameLoop();
-
