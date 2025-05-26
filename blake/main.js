@@ -4,9 +4,10 @@ const canvas2 = document.getElementById('player2Canvas');
 const ctx1 = canvas1.getContext('2d');
 const ctx2 = canvas2.getContext('2d');
 
-const canvasSize = 300;
-const segmentSize = 20;
-const moveInterval = 150;
+// Larger canvas and finer grid for smoother feel
+const canvasSize = 600;
+const segmentSize = 10; // smaller step size for more visual precision
+const moveInterval = 80;
 
 let lastUpdate = Date.now();
 let countdown = 3;
@@ -16,7 +17,6 @@ let countdownStartTime = Date.now();
 function createSnakeGame(ctx, controls, initialDirection) {
   return {
     segments: [],
-    prevSegments: [],
     dir: { x: initialDirection.x, y: initialDirection.y },
     nextDir: { x: initialDirection.x, y: initialDirection.y },
     food: spawnFood(),
@@ -24,8 +24,7 @@ function createSnakeGame(ctx, controls, initialDirection) {
     gameOver: false,
     controls,
     init() {
-      this.segments = [{ x: 5 * segmentSize, y: 5 * segmentSize }];
-      this.prevSegments = [...this.segments];
+      this.segments = [{ x: 10 * segmentSize, y: 10 * segmentSize }];
     },
     reset() {
       this.dir = { x: initialDirection.x, y: initialDirection.y };
@@ -43,7 +42,6 @@ function createSnakeGame(ctx, controls, initialDirection) {
         this.dir = { ...this.nextDir };
       }
 
-      this.prevSegments = this.segments.map(s => ({ ...s }));
       const head = {
         x: this.segments[0].x + this.dir.x * segmentSize,
         y: this.segments[0].y + this.dir.y * segmentSize
@@ -70,35 +68,24 @@ function createSnakeGame(ctx, controls, initialDirection) {
         this.segments.pop();
       }
     },
-    draw(ctx, progress) {
+    draw(ctx) {
       ctx.clearRect(0, 0, canvasSize, canvasSize);
-
-      const interp = (a, b) => a + (b - a) * progress;
-
       ctx.fillStyle = "#4caf50";
-      for (let i = 0; i < this.segments.length; i++) {
-        const curr = this.segments[i];
-        const prev = this.prevSegments[i] || curr;
-        const x = interp(prev.x, curr.x);
-        const y = interp(prev.y, curr.y);
-        ctx.fillRect(x, y, segmentSize, segmentSize);
+      for (let part of this.segments) {
+        ctx.fillRect(part.x, part.y, segmentSize, segmentSize);
       }
-
       ctx.fillStyle = "#e53935";
       ctx.fillRect(this.food.x, this.food.y, segmentSize, segmentSize);
-
       ctx.fillStyle = "#000";
       ctx.font = "16px sans-serif";
-      ctx.fillText("Score: " + this.score, 10, 290);
-
+      ctx.fillText("Score: " + this.score, 10, canvasSize - 10);
       if (this.gameOver) {
         ctx.font = "20px sans-serif";
-        ctx.fillText("Game Over", 80, 150);
+        ctx.fillText("Game Over", canvasSize / 2 - 60, canvasSize / 2);
       }
-
       if (countdownActive) {
         ctx.font = "40px sans-serif";
-        ctx.fillText(countdown.toString(), 120, 150);
+        ctx.fillText(countdown.toString(), canvasSize / 2 - 10, canvasSize / 2 - 40);
       }
     },
     keyHandler(e) {
@@ -147,18 +134,14 @@ function updateCountdown() {
 
 function gameLoop() {
   const now = Date.now();
-  const delta = now - lastUpdate;
-  const progress = Math.min(delta / moveInterval, 1);
-
   if (countdownActive) updateCountdown();
-  if (delta >= moveInterval && !countdownActive) {
+  if (now - lastUpdate >= moveInterval && !countdownActive) {
     player1.update();
     player2.update();
     lastUpdate = now;
   }
-
-  player1.draw(ctx1, progress);
-  player2.draw(ctx2, progress);
+  player1.draw(ctx1);
+  player2.draw(ctx2);
   requestAnimationFrame(gameLoop);
 }
 
