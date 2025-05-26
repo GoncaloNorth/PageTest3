@@ -7,7 +7,7 @@ const ctx2 = canvas2.getContext('2d');
 const canvasSize = 300;
 const snakeSpeed = 2; // pixels per frame
 const segmentSize = 20;
-const initialLength = 5;
+const initialLength = 2;
 
 function createSnakeGame(ctx, controls, initialDirection) {
   const snake = {
@@ -25,8 +25,8 @@ function createSnakeGame(ctx, controls, initialDirection) {
       this.segments = [];
       for (let i = 0; i < initialLength; i++) {
         this.segments.push({
-          x: 100 - i * segmentSize,
-          y: 100
+          x: 100 - i * segmentSize * this.dir.x,
+          y: 100 - i * segmentSize * this.dir.y
         });
       }
     },
@@ -56,7 +56,7 @@ function createSnakeGame(ctx, controls, initialDirection) {
       head.x += this.dir.x * snakeSpeed;
       head.y += this.dir.y * snakeSpeed;
 
-      // Game over if out of bounds
+      // Wall collision
       if (head.x < 0 || head.x >= canvasSize || head.y < 0 || head.y >= canvasSize) {
         this.gameOver = true;
         return;
@@ -66,15 +66,16 @@ function createSnakeGame(ctx, controls, initialDirection) {
       this.segments.pop();
       this.segments.unshift(head);
 
-      // Collision with self
+      // Self collision
       for (let i = 1; i < this.segments.length; i++) {
         const part = this.segments[i];
-        if (Math.abs(part.x - head.x) < segmentSize / 2 && Math.abs(part.y - head.y) < segmentSize / 2) {
+        if (Math.abs(part.x - head.x) < segmentSize / 2 &&
+            Math.abs(part.y - head.y) < segmentSize / 2) {
           this.gameOver = true;
         }
       }
 
-      // Eat food
+      // Food collision
       if (
         Math.abs(head.x - this.food.x) < segmentSize &&
         Math.abs(head.y - this.food.y) < segmentSize
@@ -90,17 +91,17 @@ function createSnakeGame(ctx, controls, initialDirection) {
     draw(ctx) {
       ctx.clearRect(0, 0, canvasSize, canvasSize);
 
-      // Snake
+      // Draw snake
       ctx.fillStyle = "#4caf50";
       for (const part of this.segments) {
         ctx.fillRect(part.x, part.y, segmentSize, segmentSize);
       }
 
-      // Food
+      // Draw food
       ctx.fillStyle = "#e53935";
       ctx.fillRect(this.food.x, this.food.y, segmentSize, segmentSize);
 
-      // Score / Game Over
+      // Score and Game Over
       ctx.fillStyle = "#000";
       ctx.font = "16px sans-serif";
       ctx.fillText("Score: " + this.score, 10, 290);
@@ -154,5 +155,6 @@ function gameLoop() {
 }
 
 gameLoop();
+
 
 
