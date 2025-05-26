@@ -13,16 +13,35 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
+      position: relative;
     }
     canvas {
       border: 2px solid #333;
       margin: 0 10px;
     }
+    .home-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      text-decoration: none;
+      background: #eee;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      color: #333;
+      z-index: 10;
+    }
+    .home-button:hover {
+      background: #ddd;
+    }
   </style>
 </head>
 <body>
+  <a href="/index.html" class="home-button">⬅ Home</a>
   <canvas id="player1Canvas" width="300" height="300"></canvas>
   <canvas id="player2Canvas" width="300" height="300"></canvas>
   <script src="main.js"></script>
 </body>
 </html>
+
