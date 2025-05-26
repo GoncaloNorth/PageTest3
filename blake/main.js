@@ -6,7 +6,7 @@ const ctx2 = canvas2.getContext('2d');
 const canvasSize = 300;
 const snakeSpeed = 2;
 const segmentSize = 20;
-const initialLength = 2;
+const initialLength = 1;
 let countdown = 3;
 let countdownActive = true;
 let countdownStartTime = Date.now();
@@ -24,13 +24,10 @@ function createSnakeGame(ctx, controls, initialDirection) {
     gameOver: false,
     controls: controls,
     init() {
-      this.segments = [];
-      for (let i = 0; i < initialLength; i++) {
-        this.segments.push({
-          x: 100 - i * segmentSize * this.dir.x,
-          y: 100 - i * segmentSize * this.dir.y
-        });
-      }
+      this.segments = [{
+        x: 100,
+        y: 100
+      }];
     },
     reset() {
       this.dir = { x: initialDirection.x, y: initialDirection.y };
@@ -43,6 +40,7 @@ function createSnakeGame(ctx, controls, initialDirection) {
       };
       this.init();
     },
+
     update() {
       if (this.gameOver || countdownActive) return;
 
@@ -65,11 +63,13 @@ function createSnakeGame(ctx, controls, initialDirection) {
       this.segments.pop();
       this.segments.unshift(head);
 
-      for (let i = 1; i < this.segments.length; i++) {
-        const part = this.segments[i];
-        if (Math.abs(part.x - head.x) < segmentSize / 2 &&
-            Math.abs(part.y - head.y) < segmentSize / 2) {
-          this.gameOver = true;
+      if (this.segments.length > 1) {
+        for (let i = 1; i < this.segments.length; i++) {
+          const part = this.segments[i];
+          if (Math.abs(part.x - head.x) < segmentSize / 2 &&
+              Math.abs(part.y - head.y) < segmentSize / 2) {
+            this.gameOver = true;
+          }
         }
       }
 
@@ -85,7 +85,7 @@ function createSnakeGame(ctx, controls, initialDirection) {
         };
       }
     },
-    draw(ctx) {
+        draw(ctx) {
       ctx.clearRect(0, 0, canvasSize, canvasSize);
 
       ctx.fillStyle = "#4caf50";
@@ -167,3 +167,4 @@ function gameLoop() {
 }
 
 gameLoop();
+
