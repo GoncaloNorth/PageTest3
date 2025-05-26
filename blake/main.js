@@ -1,3 +1,4 @@
+
 const canvas1 = document.getElementById('player1Canvas');
 const canvas2 = document.getElementById('player2Canvas');
 const ctx1 = canvas1.getContext('2d');
@@ -144,7 +145,9 @@ function gameLoop() {
   player2.update();
   player1.draw(ctx1);
   player2.draw(ctx2);
+  setTimeout(() => {
   requestAnimationFrame(gameLoop);
+}, 150);
 }
 
 gameLoop();
