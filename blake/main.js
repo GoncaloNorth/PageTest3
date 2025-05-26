@@ -4,161 +4,152 @@ const canvas2 = document.getElementById('player2Canvas');
 const ctx1 = canvas1.getContext('2d');
 const ctx2 = canvas2.getContext('2d');
 
-const gridSize = 20;
-const tileCount = 15;
-const moveInterval = 150;
+const canvasSize = 300;
+const snakeSpeed = 2; // pixels per frame
+const segmentSize = 20;
+const initialLength = 5;
 
-let lastUpdate = Date.now();
-let countdown = 3;
-let countdownActive = true;
-let countdownStartTime = Date.now();
-
-function createGame(ctx, controls, initialDirection) {
-  return {
-    snake: [{ x: 7, y: 7 }],
-    dx: initialDirection.dx,
-    dy: initialDirection.dy,
-    food: { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) },
+function createSnakeGame(ctx, controls, initialDirection) {
+  const snake = {
+    segments: [],
+    dir: { x: initialDirection.x, y: initialDirection.y },
+    nextDir: { x: initialDirection.x, y: initialDirection.y },
+    food: {
+      x: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize,
+      y: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize
+    },
     score: 0,
     gameOver: false,
     controls: controls,
-    keyHandler(e) {
-      if (this.gameOver || countdownActive) return;
-      if (e.code === this.controls.up && this.dy !== 1) {
-        this.dx = 0;
-        this.dy = -1;
-      } else if (e.code === this.controls.down && this.dy !== -1) {
-        this.dx = 0;
-        this.dy = 1;
-      } else if (e.code === this.controls.left && this.dx !== 1) {
-        this.dx = -1;
-        this.dy = 0;
-      } else if (e.code === this.controls.right && this.dx !== -1) {
-        this.dx = 1;
-        this.dy = 0;
+    init() {
+      this.segments = [];
+      for (let i = 0; i < initialLength; i++) {
+        this.segments.push({
+          x: 100 - i * segmentSize,
+          y: 100
+        });
       }
     },
+    reset() {
+      this.dir = { x: initialDirection.x, y: initialDirection.y };
+      this.nextDir = { x: initialDirection.x, y: initialDirection.y };
+      this.score = 0;
+      this.gameOver = false;
+      this.food = {
+        x: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize,
+        y: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize
+      };
+      this.init();
+    },
     update() {
-      if (this.gameOver || countdownActive) return;
+      if (this.gameOver) return;
 
-      const head = { x: this.snake[0].x + this.dx, y: this.snake[0].y + this.dy };
+      // Apply direction change
+      if (
+        (this.nextDir.x !== -this.dir.x || this.dir.x === 0) &&
+        (this.nextDir.y !== -this.dir.y || this.dir.y === 0)
+      ) {
+        this.dir = { ...this.nextDir };
+      }
 
-      if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+      const head = { ...this.segments[0] };
+      head.x += this.dir.x * snakeSpeed;
+      head.y += this.dir.y * snakeSpeed;
+
+      // Game over if out of bounds
+      if (head.x < 0 || head.x >= canvasSize || head.y < 0 || head.y >= canvasSize) {
         this.gameOver = true;
         return;
       }
 
-      for (let part of this.snake) {
-        if (part.x === head.x && part.y === head.y) {
+      // Move body
+      this.segments.pop();
+      this.segments.unshift(head);
+
+      // Collision with self
+      for (let i = 1; i < this.segments.length; i++) {
+        const part = this.segments[i];
+        if (Math.abs(part.x - head.x) < segmentSize / 2 && Math.abs(part.y - head.y) < segmentSize / 2) {
           this.gameOver = true;
-          return;
         }
       }
 
-      this.snake.unshift(head);
-
-      if (head.x === this.food.x && head.y === this.food.y) {
+      // Eat food
+      if (
+        Math.abs(head.x - this.food.x) < segmentSize &&
+        Math.abs(head.y - this.food.y) < segmentSize
+      ) {
         this.score++;
+        this.segments.push({ ...this.segments[this.segments.length - 1] });
         this.food = {
-          x: Math.floor(Math.random() * tileCount),
-          y: Math.floor(Math.random() * tileCount)
+          x: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize,
+          y: Math.floor(Math.random() * (canvasSize / segmentSize)) * segmentSize
         };
-      } else {
-        this.snake.pop();
       }
     },
     draw(ctx) {
-      ctx.clearRect(0, 0, canvas1.width, canvas1.height);
+      ctx.clearRect(0, 0, canvasSize, canvasSize);
 
+      // Snake
       ctx.fillStyle = "#4caf50";
-      for (let part of this.snake) {
-        ctx.fillRect(part.x * gridSize, part.y * gridSize, gridSize, gridSize);
+      for (const part of this.segments) {
+        ctx.fillRect(part.x, part.y, segmentSize, segmentSize);
       }
 
+      // Food
       ctx.fillStyle = "#e53935";
-      ctx.fillRect(this.food.x * gridSize, this.food.y * gridSize, gridSize, gridSize);
+      ctx.fillRect(this.food.x, this.food.y, segmentSize, segmentSize);
 
+      // Score / Game Over
       ctx.fillStyle = "#000";
       ctx.font = "16px sans-serif";
       ctx.fillText("Score: " + this.score, 10, 290);
-
       if (this.gameOver) {
-        ctx.fillStyle = "#000";
         ctx.font = "20px sans-serif";
         ctx.fillText("Game Over", 80, 150);
       }
-
-      if (countdownActive) {
-        ctx.fillStyle = "#000";
-        ctx.font = "40px sans-serif";
-        ctx.fillText(countdown.toString(), 130, 150);
-      }
     },
-    reset(initialDirection) {
-      this.snake = [{ x: 7, y: 7 }];
-      this.dx = initialDirection.dx;
-      this.dy = initialDirection.dy;
-      this.food = {
-        x: Math.floor(Math.random() * tileCount),
-        y: Math.floor(Math.random() * tileCount)
-      };
-      this.score = 0;
-      this.gameOver = false;
+    keyHandler(e) {
+      if (this.gameOver) return;
+      if (e.code === this.controls.up) this.nextDir = { x: 0, y: -1 };
+      else if (e.code === this.controls.down) this.nextDir = { x: 0, y: 1 };
+      else if (e.code === this.controls.left) this.nextDir = { x: -1, y: 0 };
+      else if (e.code === this.controls.right) this.nextDir = { x: 1, y: 0 };
     }
   };
+
+  snake.init();
+  return snake;
 }
 
-const player1 = createGame(ctx1, {
+const player1 = createSnakeGame(ctx1, {
   up: "KeyW",
   down: "KeyS",
   left: "KeyA",
   right: "KeyD"
-}, { dx: 1, dy: 0 });
+}, { x: 1, y: 0 });
 
-const player2 = createGame(ctx2, {
+const player2 = createSnakeGame(ctx2, {
   up: "ArrowUp",
   down: "ArrowDown",
   left: "ArrowLeft",
   right: "ArrowRight"
-}, { dx: 1, dy: 0 });
+}, { x: 1, y: 0 });
 
 document.addEventListener("keydown", (e) => {
   player1.keyHandler(e);
   player2.keyHandler(e);
   if (player1.gameOver && player2.gameOver && e.code === "Space") {
-    countdown = 3;
-    countdownActive = true;
-    countdownStartTime = Date.now();
-    player1.reset({ dx: 1, dy: 0 });
-    player2.reset({ dx: 1, dy: 0 });
-    lastUpdate = Date.now();
+    player1.reset();
+    player2.reset();
   }
 });
 
-function updateCountdown() {
-  const elapsed = Math.floor((Date.now() - countdownStartTime) / 1000);
-  countdown = 3 - elapsed;
-  if (countdown <= 0) {
-    countdownActive = false;
-    lastUpdate = Date.now();
-  }
-}
-
 function gameLoop() {
-  const now = Date.now();
-  const delta = now - lastUpdate;
-
-  if (countdownActive) updateCountdown();
-
-  if (delta >= moveInterval && !countdownActive) {
-    player1.update();
-    player2.update();
-    lastUpdate = now;
-  }
-
+  player1.update();
+  player2.update();
   player1.draw(ctx1);
   player2.draw(ctx2);
-
   requestAnimationFrame(gameLoop);
 }
 
