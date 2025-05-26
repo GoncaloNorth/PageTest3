@@ -5,8 +5,8 @@ const ctx1 = canvas1.getContext('2d');
 const ctx2 = canvas2.getContext('2d');
 
 const canvasSize = 600;
-const segmentSize = 20; // game grid and visuals both scaled up
-const moveInterval = 50;
+const segmentSize = 20;
+const moveInterval = 100;
 
 let lastUpdate = Date.now();
 let countdown = 3;
@@ -69,19 +69,35 @@ function createSnakeGame(ctx, controls, initialDirection) {
     },
     draw(ctx) {
       ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+      // Draw snake
       ctx.fillStyle = "#4caf50";
       for (let part of this.segments) {
         ctx.fillRect(part.x, part.y, segmentSize, segmentSize);
       }
+
+      // Draw food as a red circle
+      ctx.beginPath();
+      ctx.arc(
+        this.food.x + segmentSize / 2,
+        this.food.y + segmentSize / 2,
+        segmentSize / 2,
+        0,
+        Math.PI * 2
+      );
       ctx.fillStyle = "#e53935";
-      ctx.fillRect(this.food.x, this.food.y, segmentSize, segmentSize);
+      ctx.fill();
+
+      // Score and UI
       ctx.fillStyle = "#000";
       ctx.font = "16px sans-serif";
       ctx.fillText("Score: " + this.score, 10, canvasSize - 10);
+
       if (this.gameOver) {
         ctx.font = "20px sans-serif";
         ctx.fillText("Game Over", canvasSize / 2 - 60, canvasSize / 2);
       }
+
       if (countdownActive) {
         ctx.font = "40px sans-serif";
         ctx.fillText(countdown.toString(), canvasSize / 2 - 10, canvasSize / 2 - 40);
