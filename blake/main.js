@@ -6,7 +6,7 @@ const ctx2 = canvas2.getContext('2d');
 
 const canvasSize = 600;
 const segmentSize = 20; // game grid and visuals both scaled up
-const moveInterval = 100;
+const moveInterval = 50;
 
 let lastUpdate = Date.now();
 let countdown = 3;
