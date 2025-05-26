@@ -1,3 +1,5 @@
+
+
 const canvas1 = document.getElementById('player1Canvas');
 const canvas2 = document.getElementById('player2Canvas');
 const ctx1 = canvas1.getContext('2d');
