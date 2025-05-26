@@ -1,5 +1,4 @@
 
-
 const canvas1 = document.getElementById('player1Canvas');
 const canvas2 = document.getElementById('player2Canvas');
 const ctx1 = canvas1.getContext('2d');
@@ -17,7 +16,6 @@ let countdownStartTime = Date.now();
 function createGame(ctx, controls, initialDirection) {
   return {
     snake: [{ x: 7, y: 7 }],
-    prevSnake: [{ x: 7, y: 7 }],
     dx: initialDirection.dx,
     dy: initialDirection.dy,
     food: { x: Math.floor(Math.random() * tileCount), y: Math.floor(Math.random() * tileCount) },
@@ -43,7 +41,6 @@ function createGame(ctx, controls, initialDirection) {
     update() {
       if (this.gameOver || countdownActive) return;
 
-      this.prevSnake = this.snake.map(p => ({ ...p }));
       const head = { x: this.snake[0].x + this.dx, y: this.snake[0].y + this.dy };
 
       if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
@@ -70,20 +67,12 @@ function createGame(ctx, controls, initialDirection) {
         this.snake.pop();
       }
     },
-    draw(ctx, progress) {
+    draw(ctx) {
       ctx.clearRect(0, 0, canvas1.width, canvas1.height);
 
-      const interpolate = (a, b) => a + (b - a) * progress;
-
       ctx.fillStyle = "#4caf50";
-      for (let i = 0; i < this.snake.length; i++) {
-        const prev = this.prevSnake[i] || this.snake[i];
-        const curr = this.snake[i];
-
-        const x = interpolate(prev.x, curr.x) * gridSize;
-        const y = interpolate(prev.y, curr.y) * gridSize;
-
-        ctx.fillRect(x, y, gridSize, gridSize);
+      for (let part of this.snake) {
+        ctx.fillRect(part.x * gridSize, part.y * gridSize, gridSize, gridSize);
       }
 
       ctx.fillStyle = "#e53935";
@@ -107,7 +96,6 @@ function createGame(ctx, controls, initialDirection) {
     },
     reset(initialDirection) {
       this.snake = [{ x: 7, y: 7 }];
-      this.prevSnake = [{ x: 7, y: 7 }];
       this.dx = initialDirection.dx;
       this.dy = initialDirection.dy;
       this.food = {
@@ -159,7 +147,6 @@ function updateCountdown() {
 function gameLoop() {
   const now = Date.now();
   const delta = now - lastUpdate;
-  const progress = Math.min(delta / moveInterval, 1);
 
   if (countdownActive) updateCountdown();
 
@@ -169,8 +156,8 @@ function gameLoop() {
     lastUpdate = now;
   }
 
-  player1.draw(ctx1, progress);
-  player2.draw(ctx2, progress);
+  player1.draw(ctx1);
+  player2.draw(ctx2);
 
   requestAnimationFrame(gameLoop);
 }
