@@ -70,7 +70,6 @@ function createPiece(piece, row, col) {
 
 // Show possible moves for a piece
 function showPossibleMoves(row, col) {
-    // Clear any existing move indicators
     clearMoveIndicators();
     
     const piece = board[row][col];
@@ -84,14 +83,14 @@ function showPossibleMoves(row, col) {
         const pieceCaptures = findPieceCaptures(row, col, currentPlayer);
         pieceCaptures.forEach(move => {
             const cell = document.querySelector(`[data-row="${move.row}"][data-col="${move.col}"]`);
-            cell.classList.add('capture-move');
+            if (cell) cell.classList.add('capture-move');
         });
     } else {
         // Show regular moves
         const moves = findRegularMoves(row, col);
         moves.forEach(move => {
             const cell = document.querySelector(`[data-row="${move.row}"][data-col="${move.col}"]`);
-            cell.classList.add('possible-move');
+            if (cell) cell.classList.add('possible-move');
         });
     }
 }
@@ -111,11 +110,15 @@ function handlePieceClick(e) {
         
         // Check if there are mandatory captures
         const allCaptures = findAllCaptures('red');
+        console.log('Available captures:', allCaptures); // Debug log
         
         if (allCaptures.length > 0) {
-            // Only show moves if this piece can capture
-            const pieceCaptures = findPieceCaptures(row, col, 'red');
-            if (pieceCaptures.length > 0) {
+            // Check if this piece has any captures
+            const hasCapture = allCaptures.some(capture => 
+                capture.fromRow === row && capture.fromCol === col
+            );
+            
+            if (hasCapture) {
                 showPossibleMoves(row, col);
             } else {
                 clearMoveIndicators();
@@ -182,18 +185,25 @@ function handleDragStart(e) {
     }
 }
 
-// Find all possible captures for a color
+// Find all captures for a color
 function findAllCaptures(color) {
-    const captures = [];
+    const allCaptures = [];
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
-            if (board[row][col]?.color === color) {
+            const piece = board[row][col];
+            if (piece?.color === color) {
                 const pieceCaptures = findPieceCaptures(row, col, color);
-                captures.push(...pieceCaptures);
+                if (pieceCaptures.length > 0) {
+                    allCaptures.push({
+                        fromRow: row,
+                        fromCol: col,
+                        captures: pieceCaptures
+                    });
+                }
             }
         }
     }
-    return captures;
+    return allCaptures;
 }
 
 // Find captures for a specific piece
@@ -202,10 +212,15 @@ function findPieceCaptures(row, col, color) {
     const piece = board[row][col];
     if (!piece) return captures;
 
-    // Define capture directions based on piece type
-    const directions = piece.isKing ? 
-        [[2, 2], [2, -2], [-2, 2], [-2, -2]] : // King captures in all directions
-        [[2, 2], [2, -2]]; // Regular black pieces capture downward only
+    // Define capture directions based on piece type and color
+    let directions;
+    if (piece.isKing) {
+        directions = [[2, 2], [2, -2], [-2, 2], [-2, -2]]; // Kings can capture in all directions
+    } else if (color === 'red') {
+        directions = [[-2, 2], [-2, -2]]; // Red pieces capture upward
+    } else {
+        directions = [[2, 2], [2, -2]]; // Black pieces capture downward
+    }
 
     directions.forEach(([dRow, dCol]) => {
         const newRow = row + dRow;
@@ -293,7 +308,7 @@ function handleDrop(e) {
     }
 }
 
-// Check if move is valid with updated rules
+// Check if move is valid
 function isValidMove(fromRow, fromCol, toRow, toCol) {
     if (!board[fromRow][fromCol] || board[toRow][toCol]) return false;
     
@@ -301,23 +316,25 @@ function isValidMove(fromRow, fromCol, toRow, toCol) {
     const rowDiff = toRow - fromRow;
     const colDiff = Math.abs(toCol - fromCol);
     
-    // If captures are available, only allow capture moves
-    if (mustCapture) {
-        if (Math.abs(rowDiff) !== 2 || colDiff !== 2) return false;
-        
-        const midRow = (fromRow + toRow) / 2;
-        const midCol = (fromCol + toCol) / 2;
-        const capturedPiece = board[midRow][midCol];
-        
-        return capturedPiece && capturedPiece.color !== piece.color;
+    // Check for mandatory captures
+    const allCaptures = findAllCaptures(currentPlayer);
+    
+    if (allCaptures.length > 0) {
+        // If there are captures available, only allow capture moves
+        const pieceCaptures = findPieceCaptures(fromRow, fromCol, currentPlayer);
+        const isValidCapture = pieceCaptures.some(capture => 
+            capture.row === toRow && capture.col === toCol
+        );
+        return isValidCapture;
     }
     
-    // Regular moves
+    // If no captures are available, check regular moves
+    // Regular move is one square diagonal
     if (colDiff === 1 && Math.abs(rowDiff) === 1) {
         if (piece.isKing) {
             return true; // Kings can move in any diagonal direction
         }
-        // Regular pieces can only move forward
+        // Regular pieces can only move forward (up for red, down for black)
         return (piece.color === 'red' && rowDiff < 0) ||
                (piece.color === 'black' && rowDiff > 0);
     }
