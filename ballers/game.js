@@ -6,6 +6,7 @@ let timer = 10;
 let timerInterval;
 let mustCapture = false;
 let lastCapturingPiece = null;
+let missedCapture = null;
 
 // DOM elements
 const boardElement = document.getElementById('board');
@@ -118,7 +119,6 @@ function handlePieceClick(e) {
                 showPossibleMoves(row, col);
             } else {
                 clearMoveIndicators();
-                alert('You must make a capture with a piece that can capture!');
             }
         } else {
             showPossibleMoves(row, col);
@@ -166,7 +166,6 @@ function handleDragStart(e) {
                 showPossibleMoves(row, col);
             } else {
                 e.preventDefault();
-                alert('You must make a capture with a piece that can capture!');
             }
         } else {
             selectedPiece = { element: e.target, row, col };
@@ -240,10 +239,10 @@ function setupDropZones() {
     });
 }
 
-// Handle piece drop with updated rules
+// Handle piece drop
 function handleDrop(e) {
     e.preventDefault();
-    if (currentPlayer !== 'red') return;
+    if (currentPlayer !== 'red' || !selectedPiece) return;
     
     const targetCell = e.target.closest('.cell');
     const targetRow = parseInt(targetCell.dataset.row);
@@ -263,28 +262,20 @@ function handleDrop(e) {
         
         board[targetRow][targetCol] = movingPiece;
         
+        // Handle capture
         if (isCapture) {
             const capturedRow = (targetRow + selectedPiece.row) / 2;
             const capturedCol = (targetCol + selectedPiece.col) / 2;
             board[capturedRow][capturedCol] = null;
-            
-            // Check for additional captures (optional after first capture)
-            const additionalCaptures = findPieceCaptures(targetRow, targetCol, 'red');
-            if (additionalCaptures.length > 0) {
-                lastCapturingPiece = { row: targetRow, col: targetCol };
-                createBoard();
-                setupDropZones();
-                return;
-            }
         }
         
-        lastCapturingPiece = null;
+        // Always switch turns after a move
         switchTurn();
         createBoard();
         setupDropZones();
         
         if (currentPlayer === 'black') {
-            setTimeout(makeAIMove, 1000);
+            setTimeout(makeAIMove, 500);
         }
     }
 }
@@ -321,12 +312,28 @@ function isValidMove(fromRow, fromCol, toRow, toCol) {
     return false;
 }
 
-// AI move function
+// Check for missed captures before AI move
+function checkForMissedCaptures() {
+    const allCaptures = findAllCaptures('red');
+    if (allCaptures.length > 0) {
+        // Store the piece that missed the capture
+        const piece = allCaptures[0];
+        missedCapture = {
+            row: piece.row,
+            col: piece.col
+        };
+        // AI will remove this piece in its next move
+        return true;
+    }
+    return false;
+}
+
+// Make AI move
 function makeAIMove() {
-    // First, check for mandatory captures
+    // First check for mandatory captures
     let possibleMoves = findAllCaptures('black');
     
-    // If no captures, find regular moves
+    // If no captures available, find regular moves
     if (possibleMoves.length === 0) {
         possibleMoves = [];
         for (let row = 0; row < 8; row++) {
@@ -373,17 +380,9 @@ function makeAIMove() {
             const capturedRow = (move.toRow + move.fromRow) / 2;
             const capturedCol = (move.toCol + move.fromCol) / 2;
             board[capturedRow][capturedCol] = null;
-            
-            // Check for additional captures
-            const additionalCaptures = findPieceCaptures(move.toRow, move.toCol, 'black');
-            if (additionalCaptures.length > 0) {
-                // AI will always take additional captures
-                setTimeout(() => makeAIMove(), 500);
-                createBoard();
-                return;
-            }
         }
         
+        // Always switch turns after a move
         switchTurn();
         createBoard();
         setupDropZones();
