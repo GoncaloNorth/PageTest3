@@ -22,15 +22,15 @@
         }
         .board {
             display: grid;
-            grid-template-columns: repeat(8, 60px);
-            grid-template-rows: repeat(8, 60px);
+            grid-template-columns: repeat(8, 80px);
+            grid-template-rows: repeat(8, 80px);
             gap: 0;
             border: 4px solid #444;
             background: #444;
         }
         .cell {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -42,24 +42,27 @@
             background: #000;
         }
         .piece {
-            width: 50px;
-            height: 50px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
             cursor: grab;
             transition: transform 0.2s;
+            position: relative;
         }
         .piece.red {
             background: radial-gradient(circle at 30% 30%, #ff4444, #cc0000);
-            border: 2px solid #ff6666;
+            border: 3px solid #ff6666;
+            box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3);
         }
         .piece.black {
             background: radial-gradient(circle at 30% 30%, #444444, #000000);
-            border: 2px solid #666666;
+            border: 3px solid #666666;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
         }
         .piece.king::after {
             content: '♔';
             color: gold;
-            font-size: 24px;
+            font-size: 32px;
             position: absolute;
             top: 50%;
             left: 50%;
@@ -73,16 +76,17 @@
         }
         .info-panel {
             background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 10px;
-            min-width: 200px;
+            padding: 30px;
+            border-radius: 15px;
+            min-width: 250px;
         }
         .timer {
-            font-size: 2.5rem;
+            font-size: 3.5rem;
             text-align: center;
             margin-bottom: 20px;
             font-weight: bold;
             color: #00ff00;
+            font-family: 'Courier New', monospace;
         }
         .timer.warning {
             color: #ff0000;
@@ -90,7 +94,7 @@
         }
         .turn-indicator {
             text-align: center;
-            font-size: 1.2rem;
+            font-size: 1.5rem;
             margin-bottom: 20px;
         }
         .back-button {
@@ -120,8 +124,8 @@
     <div class="game-container">
         <div class="board" id="board"></div>
         <div class="info-panel">
-            <div class="timer" id="timer">5</div>
-            <div class="turn-indicator" id="turnIndicator">Red's Turn</div>
+            <div class="timer" id="timer">10.0</div>
+            <div class="turn-indicator" id="turnIndicator">Your Turn</div>
         </div>
     </div>
     <script src="game.js"></script>
