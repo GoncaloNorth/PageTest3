@@ -22,7 +22,7 @@ gameOverModal.innerHTML = `
         <h2>Game Over</h2>
         <div class="game-over-buttons">
             <button class="rematch-btn">Rematch</button>
-            <button class="home-btn">Back to Menu</button>
+            <button class="home-btn">Go Home</button>
         </div>
     </div>
 `;
@@ -629,9 +629,8 @@ function startTimer() {
         if (timer <= 0) {
             timer = 0;
             clearInterval(timerInterval);
-            if (currentPlayer === 'red') {
-                switchTurn();
-                setTimeout(makeAIMove, 1000);
+            if (currentPlayer === 'red' && !isGameOver) {
+                endGame('Time\'s Up - AI Wins!');
             }
         }
         updateTimerDisplay();
@@ -645,9 +644,6 @@ function resetTimer() {
 function updateTimerDisplay() {
     timerElement.textContent = timer.toFixed(1);
     timerElement.classList.toggle('warning', timer <= 3);
-    if (timer <= 0 && currentPlayer === 'red' && !isGameOver) {
-        endGame('Time\'s Up - AI Wins!');
-    }
 }
 
 // Initialize the game
@@ -669,11 +665,7 @@ gameOverModal.querySelector('.rematch-btn').addEventListener('click', () => {
 });
 
 gameOverModal.querySelector('.home-btn').addEventListener('click', () => {
-    // Use the existing back to menu functionality
-    const backButton = document.querySelector('.back-to-menu');
-    if (backButton) {
-        backButton.click();
-    }
+    window.location.href = '../index.html';
 });
 
 resignButton.addEventListener('click', () => {
