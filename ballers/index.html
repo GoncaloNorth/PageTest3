@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -34,12 +34,31 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
         }
         .cell.white {
             background: #fff;
         }
         .cell.black {
             background: #000;
+        }
+        .cell.possible-move::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: rgba(0, 255, 0, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .cell.capture-move::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 0, 0, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
         }
         .piece {
             width: 70px;
