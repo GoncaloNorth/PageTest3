@@ -68,6 +68,40 @@ function createPiece(piece, row, col) {
     return pieceElement;
 }
 
+// Find all possible capture sequences for a piece
+function findCaptureSequences(row, col, color) {
+    const sequences = new Set(); // Use Set to avoid duplicate end positions
+    const piece = board[row][col];
+    if (!piece || piece.color !== color) return [];
+
+    function findSequence(currentRow, currentCol, capturedPieces = new Set()) {
+        const captures = findPieceCaptures(currentRow, currentCol, color);
+        if (captures.length === 0) {
+            // Add this end position if we've captured at least one piece
+            if (capturedPieces.size > 0) {
+                sequences.add(JSON.stringify({
+                    row: currentRow,
+                    col: currentCol,
+                    capturedPieces: Array.from(capturedPieces)
+                }));
+            }
+            return;
+        }
+
+        captures.forEach(capture => {
+            const captureKey = `${capture.capturedRow},${capture.capturedCol}`;
+            if (!capturedPieces.has(captureKey)) {
+                const newCaptured = new Set(capturedPieces);
+                newCaptured.add(captureKey);
+                findSequence(capture.row, capture.col, newCaptured);
+            }
+        });
+    }
+
+    findSequence(row, col);
+    return Array.from(sequences).map(s => JSON.parse(s));
+}
+
 // Show possible moves for a piece
 function showPossibleMoves(row, col) {
     clearMoveIndicators();
@@ -75,18 +109,17 @@ function showPossibleMoves(row, col) {
     const piece = board[row][col];
     if (!piece || piece.color !== currentPlayer) return;
 
-    // Check if there are any mandatory captures
-    const allCaptures = findAllCaptures(currentPlayer);
+    // Check for capture sequences
+    const captureSequences = findCaptureSequences(row, col, currentPlayer);
     
-    if (allCaptures.length > 0) {
-        // Only show captures for this piece if it has any
-        const pieceCaptures = findPieceCaptures(row, col, currentPlayer);
-        pieceCaptures.forEach(move => {
-            const cell = document.querySelector(`[data-row="${move.row}"][data-col="${move.col}"]`);
+    if (captureSequences.length > 0) {
+        // Show all possible end positions for captures
+        captureSequences.forEach(sequence => {
+            const cell = document.querySelector(`[data-row="${sequence.row}"][data-col="${sequence.col}"]`);
             if (cell) cell.classList.add('capture-move');
         });
     } else {
-        // Show regular moves
+        // If no captures, show regular moves
         const moves = findRegularMoves(row, col);
         moves.forEach(move => {
             const cell = document.querySelector(`[data-row="${move.row}"][data-col="${move.col}"]`);
@@ -135,17 +168,19 @@ function findRegularMoves(row, col) {
     const piece = board[row][col];
     if (!piece) return moves;
 
-    // Define move directions based on piece type
-    const directions = piece.isKing ? 
-        [[1, 1], [1, -1], [-1, 1], [-1, -1]] : // King moves in all diagonal directions
-        [[1, 1], [1, -1]]; // Regular black pieces move downward only
+    // Define move directions based on piece type and color
+    let directions;
+    if (piece.isKing) {
+        directions = [[1, 1], [1, -1], [-1, 1], [-1, -1]]; // Kings move in all directions
+    } else if (piece.color === 'red') {
+        directions = [[-1, 1], [-1, -1]]; // Red pieces move upward
+    } else {
+        directions = [[1, 1], [1, -1]]; // Black pieces move downward
+    }
 
-    // Check each possible direction
     directions.forEach(([dRow, dCol]) => {
         const newRow = row + dRow;
         const newCol = col + dCol;
-        
-        // Check if the move is within bounds and the target square is empty
         if (isValidPosition(newRow, newCol) && !board[newRow][newCol]) {
             moves.push({ row: newRow, col: newCol });
         }
@@ -276,28 +311,37 @@ function handleDrop(e) {
     const targetRow = parseInt(targetCell.dataset.row);
     const targetCol = parseInt(targetCell.dataset.col);
     
-    if (isValidMove(selectedPiece.row, selectedPiece.col, targetRow, targetCol)) {
-        const isCapture = Math.abs(targetRow - selectedPiece.row) === 2;
-        const movingPiece = board[selectedPiece.row][selectedPiece.col];
+    // Get all possible moves including capture sequences
+    const captureSequences = findCaptureSequences(selectedPiece.row, selectedPiece.col, currentPlayer);
+    const regularMoves = findRegularMoves(selectedPiece.row, selectedPiece.col);
+    
+    // Check if the target position is a valid end position for a capture sequence
+    const validCapture = captureSequences.find(seq => seq.row === targetRow && seq.col === targetCol);
+    const validRegularMove = captureSequences.length === 0 && 
+        regularMoves.some(move => move.row === targetRow && move.col === targetCol);
+    
+    if (validCapture || validRegularMove) {
+        const piece = board[selectedPiece.row][selectedPiece.col];
         
-        // Move the piece
+        if (validCapture) {
+            // Execute the capture sequence
+            validCapture.capturedPieces.forEach(pos => {
+                const [row, col] = pos.split(',').map(Number);
+                board[row][col] = null;
+            });
+        }
+        
+        // Move piece to final position
         board[selectedPiece.row][selectedPiece.col] = null;
         
         // Check for king promotion
-        if (targetRow === 0 && movingPiece.color === 'red') {
-            movingPiece.isKing = true;
+        if (targetRow === 0 && piece.color === 'red') {
+            piece.isKing = true;
         }
         
-        board[targetRow][targetCol] = movingPiece;
+        board[targetRow][targetCol] = piece;
         
-        // Handle capture
-        if (isCapture) {
-            const capturedRow = (targetRow + selectedPiece.row) / 2;
-            const capturedCol = (targetCol + selectedPiece.col) / 2;
-            board[capturedRow][capturedCol] = null;
-        }
-        
-        // Always switch turns after a move
+        // Switch turns
         switchTurn();
         createBoard();
         setupDropZones();
@@ -306,40 +350,6 @@ function handleDrop(e) {
             setTimeout(makeAIMove, 500);
         }
     }
-}
-
-// Check if move is valid
-function isValidMove(fromRow, fromCol, toRow, toCol) {
-    if (!board[fromRow][fromCol] || board[toRow][toCol]) return false;
-    
-    const piece = board[fromRow][fromCol];
-    const rowDiff = toRow - fromRow;
-    const colDiff = Math.abs(toCol - fromCol);
-    
-    // Check for mandatory captures
-    const allCaptures = findAllCaptures(currentPlayer);
-    
-    if (allCaptures.length > 0) {
-        // If there are captures available, only allow capture moves
-        const pieceCaptures = findPieceCaptures(fromRow, fromCol, currentPlayer);
-        const isValidCapture = pieceCaptures.some(capture => 
-            capture.row === toRow && capture.col === toCol
-        );
-        return isValidCapture;
-    }
-    
-    // If no captures are available, check regular moves
-    // Regular move is one square diagonal
-    if (colDiff === 1 && Math.abs(rowDiff) === 1) {
-        if (piece.isKing) {
-            return true; // Kings can move in any diagonal direction
-        }
-        // Regular pieces can only move forward (up for red, down for black)
-        return (piece.color === 'red' && rowDiff < 0) ||
-               (piece.color === 'black' && rowDiff > 0);
-    }
-    
-    return false;
 }
 
 // Check for missed captures before AI move
@@ -360,87 +370,75 @@ function checkForMissedCaptures() {
 
 // Make AI move
 function makeAIMove() {
-    // First check for mandatory captures
-    let possibleMoves = [];
+    let bestMove = null;
+    let maxCaptures = 0;
     
-    // Find all pieces that can capture
+    // Check all pieces for their best capture sequences
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
-            const piece = board[row][col];
-            if (piece?.color === 'black') {
-                const captures = findPieceCaptures(row, col, 'black');
-                captures.forEach(capture => {
-                    possibleMoves.push({
-                        fromRow: row,
-                        fromCol: col,
-                        toRow: capture.row,
-                        toCol: capture.col,
-                        isCapture: true,
-                        capturedRow: capture.capturedRow,
-                        capturedCol: capture.capturedCol
-                    });
+            if (board[row][col]?.color === 'black') {
+                const sequences = findCaptureSequences(row, col, 'black');
+                sequences.forEach(sequence => {
+                    if (sequence.capturedPieces.length > maxCaptures) {
+                        maxCaptures = sequence.capturedPieces.length;
+                        bestMove = {
+                            fromRow: row,
+                            fromCol: col,
+                            ...sequence
+                        };
+                    }
                 });
             }
         }
     }
     
     // If no captures available, find regular moves
-    if (possibleMoves.length === 0) {
+    if (!bestMove) {
+        const regularMoves = [];
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
-                const piece = board[row][col];
-                if (piece?.color === 'black') {
-                    const regularMoves = findRegularMoves(row, col);
-                    regularMoves.forEach(move => {
-                        possibleMoves.push({
+                if (board[row][col]?.color === 'black') {
+                    const moves = findRegularMoves(row, col);
+                    moves.forEach(move => {
+                        regularMoves.push({
                             fromRow: row,
                             fromCol: col,
-                            toRow: move.row,
-                            toCol: move.col,
-                            isCapture: false
+                            row: move.row,
+                            col: move.col
                         });
                     });
                 }
             }
         }
+        if (regularMoves.length > 0) {
+            bestMove = regularMoves[Math.floor(Math.random() * regularMoves.length)];
+        }
     }
     
-    // Debug log
-    console.log('AI possible moves:', possibleMoves);
-    
-    if (possibleMoves.length > 0) {
-        // Prioritize captures if available
-        const captures = possibleMoves.filter(move => move.isCapture);
-        const moveToMake = captures.length > 0 ? 
-            captures[Math.floor(Math.random() * captures.length)] :
-            possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-            
-        console.log('AI chosen move:', moveToMake);
+    if (bestMove) {
+        const piece = board[bestMove.fromRow][bestMove.fromCol];
         
-        const piece = board[moveToMake.fromRow][moveToMake.fromCol];
+        // Execute captures if any
+        if (bestMove.capturedPieces) {
+            bestMove.capturedPieces.forEach(pos => {
+                const [row, col] = pos.split(',').map(Number);
+                board[row][col] = null;
+            });
+        }
         
-        // Move the piece
-        board[moveToMake.fromRow][moveToMake.fromCol] = null;
+        // Move piece to final position
+        board[bestMove.fromRow][bestMove.fromCol] = null;
         
         // Check for king promotion
-        if (moveToMake.toRow === 7) {
+        if (bestMove.row === 7) {
             piece.isKing = true;
         }
         
-        board[moveToMake.toRow][moveToMake.toCol] = piece;
+        board[bestMove.row][bestMove.col] = piece;
         
-        // Handle capture
-        if (moveToMake.isCapture) {
-            board[moveToMake.capturedRow][moveToMake.capturedCol] = null;
-        }
-        
-        // Always switch turns after a move
         switchTurn();
         createBoard();
         setupDropZones();
-    } else {
-        // If no moves are available, game might be over
-        console.log('No moves available for AI');
     }
 }
 
