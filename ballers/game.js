@@ -1,4 +1,4 @@
-/ Game state
+// Game state
 let board = [];
 let currentPlayer = 'red';
 let selectedPiece = null;
@@ -440,4 +440,3 @@ function initGame() {
 
 // Start the game
 initGame(); 
-
