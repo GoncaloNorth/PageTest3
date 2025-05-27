@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -27,6 +27,7 @@
             gap: 0;
             border: 4px solid #444;
             background: #444;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
         .cell {
             width: 80px;
@@ -37,10 +38,10 @@
             position: relative;
         }
         .cell.white {
-            background: #fff;
+            background: #e8e8e8;
         }
         .cell.black {
-            background: #000;
+            background: #222;
         }
         .cell.possible-move::after {
             content: '';
@@ -50,6 +51,7 @@
             background: rgba(0, 255, 0, 0.4);
             border-radius: 50%;
             pointer-events: none;
+            z-index: 2;
         }
         .cell.capture-move::after {
             content: '';
@@ -59,6 +61,7 @@
             background: rgba(255, 0, 0, 0.4);
             border-radius: 50%;
             pointer-events: none;
+            z-index: 2;
         }
         .piece {
             width: 70px;
@@ -67,6 +70,7 @@
             cursor: grab;
             transition: transform 0.2s;
             position: relative;
+            z-index: 1;
         }
         .piece.red {
             background: radial-gradient(circle at 30% 30%, #ff4444, #cc0000);
@@ -89,6 +93,7 @@
             background: 
                 linear-gradient(90deg, transparent 45%, currentColor 45%, currentColor 55%, transparent 55%),
                 linear-gradient(0deg, transparent 45%, currentColor 45%, currentColor 55%, transparent 55%);
+            z-index: 2;
         }
         .piece.red.king::before {
             color: #ff9999;
@@ -107,6 +112,7 @@
             padding: 30px;
             border-radius: 15px;
             min-width: 250px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         .timer {
             font-size: 3.5rem;
@@ -115,6 +121,7 @@
             font-weight: bold;
             color: #00ff00;
             font-family: 'Courier New', monospace;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
         }
         .timer.warning {
             color: #ff0000;
@@ -124,6 +131,8 @@
             text-align: center;
             font-size: 1.5rem;
             margin-bottom: 20px;
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         .back-button {
             position: absolute;
@@ -135,10 +144,12 @@
             text-decoration: none;
             border-radius: 5px;
             font-family: Arial, sans-serif;
-            transition: background 0.3s;
+            transition: background 0.3s, transform 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
         .back-button:hover {
             background: #005fa3;
+            transform: translateY(-2px);
         }
         @keyframes pulse {
             0% { opacity: 1; }
