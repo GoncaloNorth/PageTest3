@@ -74,12 +74,14 @@ function findCaptureSequences(row, col, color) {
     const piece = board[row][col];
     if (!piece || piece.color !== color) return [];
 
-    function findSequence(currentRow, currentCol, capturedPieces = new Set()) {
+    function findSequence(currentRow, currentCol, sequence = [], capturedPieces = new Set()) {
         const captures = findPieceCaptures(currentRow, currentCol, color);
+        
+        // If no more captures are available, add this sequence if it captured at least one piece
         if (captures.length === 0) {
-            // Add this end position if we've captured at least one piece
-            if (capturedPieces.size > 0) {
+            if (sequence.length > 0) {
                 sequences.add(JSON.stringify({
+                    path: sequence,
                     row: currentRow,
                     col: currentCol,
                     capturedPieces: Array.from(capturedPieces)
@@ -88,12 +90,34 @@ function findCaptureSequences(row, col, color) {
             return;
         }
 
+        // Try each possible capture
         captures.forEach(capture => {
             const captureKey = `${capture.capturedRow},${capture.capturedCol}`;
+            // Only proceed if we haven't captured this piece in this sequence
             if (!capturedPieces.has(captureKey)) {
+                // Create new sets/arrays for this branch of captures
                 const newCaptured = new Set(capturedPieces);
                 newCaptured.add(captureKey);
-                findSequence(capture.row, capture.col, newCaptured);
+                const newSequence = [...sequence, {
+                    from: { row: currentRow, col: currentCol },
+                    to: { row: capture.row, col: capture.col },
+                    captured: { row: capture.capturedRow, col: capture.capturedCol }
+                }];
+
+                // Temporarily update board state
+                const tempPiece = board[currentRow][currentCol];
+                const tempCaptured = board[capture.capturedRow][capture.capturedCol];
+                board[currentRow][currentCol] = null;
+                board[capture.capturedRow][capture.capturedCol] = null;
+                board[capture.row][capture.col] = tempPiece;
+
+                // Recursively find more captures
+                findSequence(capture.row, capture.col, newSequence, newCaptured);
+
+                // Restore board state
+                board[currentRow][currentCol] = tempPiece;
+                board[capture.capturedRow][capture.capturedCol] = tempCaptured;
+                board[capture.row][capture.col] = null;
             }
         });
     }
@@ -116,8 +140,16 @@ function showPossibleMoves(row, col) {
         // Show all possible end positions for captures
         captureSequences.forEach(sequence => {
             const cell = document.querySelector(`[data-row="${sequence.row}"][data-col="${sequence.col}"]`);
-            if (cell) cell.classList.add('capture-move');
+            if (cell) {
+                cell.classList.add('capture-move');
+                
+                // Add data attributes to store capture sequence information
+                cell.dataset.captureSequence = JSON.stringify(sequence);
+            }
         });
+        
+        // Debug log to show all possible sequences
+        console.log('Available capture sequences:', captureSequences);
     } else {
         // If no captures, show regular moves
         const moves = findRegularMoves(row, col);
@@ -315,7 +347,7 @@ function handleDrop(e) {
     const captureSequences = findCaptureSequences(selectedPiece.row, selectedPiece.col, currentPlayer);
     const regularMoves = findRegularMoves(selectedPiece.row, selectedPiece.col);
     
-    // Check if the target position is a valid end position for a capture sequence
+    // Find the specific capture sequence that leads to this position
     const validCapture = captureSequences.find(seq => seq.row === targetRow && seq.col === targetCol);
     const validRegularMove = captureSequences.length === 0 && 
         regularMoves.some(move => move.row === targetRow && move.col === targetCol);
@@ -324,22 +356,25 @@ function handleDrop(e) {
         const piece = board[selectedPiece.row][selectedPiece.col];
         
         if (validCapture) {
-            // Execute the capture sequence
-            validCapture.capturedPieces.forEach(pos => {
-                const [row, col] = pos.split(',').map(Number);
-                board[row][col] = null;
+            // Execute the entire capture sequence
+            validCapture.path.forEach(move => {
+                // Remove the captured piece
+                board[move.captured.row][move.captured.col] = null;
+                
+                // Move the piece to its new position
+                board[move.from.row][move.from.col] = null;
+                board[move.to.row][move.to.col] = piece;
             });
+        } else {
+            // Regular move
+            board[selectedPiece.row][selectedPiece.col] = null;
+            board[targetRow][targetCol] = piece;
         }
-        
-        // Move piece to final position
-        board[selectedPiece.row][selectedPiece.col] = null;
         
         // Check for king promotion
         if (targetRow === 0 && piece.color === 'red') {
             piece.isKing = true;
         }
-        
-        board[targetRow][targetCol] = piece;
         
         // Switch turns
         switchTurn();
