@@ -7,11 +7,118 @@ let timerInterval;
 let mustCapture = false;
 let lastCapturingPiece = null;
 let missedCapture = null;
+let isGameOver = false;
 
 // DOM elements
 const boardElement = document.getElementById('board');
 const timerElement = document.getElementById('timer');
 const turnIndicatorElement = document.getElementById('turnIndicator');
+
+// Add after the timerElement declaration
+const gameOverModal = document.createElement('div');
+gameOverModal.className = 'game-over-modal';
+gameOverModal.innerHTML = `
+    <div class="game-over-content">
+        <h2>Game Over</h2>
+        <div class="game-over-buttons">
+            <button class="rematch-btn">Rematch</button>
+            <button class="home-btn">Back to Menu</button>
+        </div>
+    </div>
+`;
+document.querySelector('.game-container').appendChild(gameOverModal);
+
+// Add resign button
+const resignButton = document.createElement('button');
+resignButton.className = 'resign-button';
+resignButton.textContent = 'Resign';
+document.querySelector('.info-panel').appendChild(resignButton);
+
+// Add styles to the head
+const styles = document.createElement('style');
+styles.textContent = `
+    .game-over-modal {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.85);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        text-align: center;
+        min-width: 300px;
+        pointer-events: auto;
+    }
+
+    .game-over-modal.active {
+        display: block;
+    }
+
+    .game-over-content h2 {
+        color: white;
+        font-size: 2em;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        font-weight: bold;
+        font-family: 'Roboto', sans-serif;
+    }
+
+    .game-over-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .game-over-buttons button {
+        padding: 10px 20px;
+        font-size: 1em;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        font-weight: bold;
+        font-family: 'Roboto', sans-serif;
+    }
+
+    .rematch-btn {
+        background: #4CAF50;
+        color: white;
+    }
+
+    .home-btn {
+        background: #2196F3;
+        color: white;
+    }
+
+    .game-over-buttons button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    }
+
+    .resign-button {
+        margin-top: 10px;
+        padding: 8px 16px;
+        background: #f44336;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        text-transform: uppercase;
+        transition: all 0.3s ease;
+        font-family: 'Roboto', sans-serif;
+    }
+
+    .resign-button:hover {
+        background: #d32f2f;
+        transform: scale(1.05);
+    }
+`;
+document.head.appendChild(styles);
 
 // Initialize the game board
 function initializeBoard() {
@@ -351,6 +458,7 @@ function setupDropZones() {
 
 // Handle piece drop
 function handleDrop(e) {
+    if (isGameOver) return;
     e.preventDefault();
     if (currentPlayer !== 'red' || !selectedPiece) return;
     
@@ -400,6 +508,8 @@ function handleDrop(e) {
             setTimeout(makeAIMove, 500);
         }
     }
+
+    checkGameState();
 }
 
 // Check for missed captures before AI move
@@ -420,6 +530,7 @@ function checkForMissedCaptures() {
 
 // Make AI move
 function makeAIMove() {
+    if (isGameOver) return;
     let bestMove = null;
     let maxCaptures = 0;
     
@@ -490,6 +601,8 @@ function makeAIMove() {
         createBoard();
         setupDropZones();
     }
+
+    checkGameState();
 }
 
 // Switch turns and reset timer
@@ -502,6 +615,8 @@ function switchTurn() {
         clearInterval(timerInterval);
         timerElement.textContent = '---';
     }
+
+    checkGameState();
 }
 
 // Timer functions
@@ -530,6 +645,9 @@ function resetTimer() {
 function updateTimerDisplay() {
     timerElement.textContent = timer.toFixed(1);
     timerElement.classList.toggle('warning', timer <= 3);
+    if (timer <= 0 && currentPlayer === 'red' && !isGameOver) {
+        endGame('Time\'s Up - AI Wins!');
+    }
 }
 
 // Initialize the game
@@ -541,4 +659,85 @@ function initGame() {
 }
 
 // Start the game
-initGame(); 
+initGame();
+
+// Add event listeners for the buttons
+gameOverModal.querySelector('.rematch-btn').addEventListener('click', () => {
+    gameOverModal.classList.remove('active');
+    isGameOver = false;
+    initGame();
+});
+
+gameOverModal.querySelector('.home-btn').addEventListener('click', () => {
+    // Use the existing back to menu functionality
+    const backButton = document.querySelector('.back-to-menu');
+    if (backButton) {
+        backButton.click();
+    }
+});
+
+resignButton.addEventListener('click', () => {
+    endGame('AI Wins!');
+});
+
+// Add function to check for available moves
+function hasAvailableMoves(color) {
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const piece = board[row][col];
+            if (piece?.color === color) {
+                const captures = findCaptureSequences(row, col, color);
+                const moves = findRegularMoves(row, col);
+                if (captures.length > 0 || moves.length > 0) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// Add function to count pieces
+function countPieces(color) {
+    let count = 0;
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            if (board[row][col]?.color === color) {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
+// Add function to end the game
+function endGame(message = 'Game Over') {
+    isGameOver = true;
+    clearInterval(timerInterval);
+    gameOverModal.querySelector('h2').textContent = message;
+    gameOverModal.classList.add('active');
+}
+
+// Add game state check after each move
+function checkGameState() {
+    if (isGameOver) return;
+
+    const redPieces = countPieces('red');
+    const blackPieces = countPieces('black');
+
+    if (redPieces === 0) {
+        endGame('AI Wins!');
+        return;
+    }
+
+    if (blackPieces === 0) {
+        endGame('You Win!');
+        return;
+    }
+
+    const currentColor = currentPlayer;
+    if (!hasAvailableMoves(currentColor)) {
+        endGame(currentColor === 'red' ? 'AI Wins!' : 'You Win!');
+        return;
+    }
+} 
