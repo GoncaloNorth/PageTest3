@@ -2,21 +2,20 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 
-// Set canvas size
 canvas.width = 800;
 canvas.height = 400;
 
-// Game objects
+
 const paddleWidth = 10;
 const paddleHeight = 60;
 const ballSize = 8;
 
-// Game state
+
 let playerScore = 0;
 let computerScore = 0;
 let gameStarted = false;
 
-// Paddle positions
+
 const player = {
     y: canvas.height / 2 - paddleHeight / 2,
     speed: 0,
@@ -28,7 +27,7 @@ const computer = {
     speed: 4
 };
 
-// Ball properties
+
 const ball = {
     x: canvas.width / 2,
     y: canvas.height / 2,
@@ -42,7 +41,6 @@ const ball = {
     }
 };
 
-// Event listeners for paddle movement
 document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowUp') {
         player.speed = -player.moveSpeed;
@@ -62,23 +60,21 @@ document.addEventListener('keyup', (e) => {
     }
 });
 
-// Game loop
 function update() {
-    // Move player paddle
+
     player.y += player.speed;
     player.y = Math.max(0, Math.min(canvas.height - paddleHeight, player.y));
 
     if (gameStarted) {
-        // Move ball
+      
         ball.x += ball.speedX;
         ball.y += ball.speedY;
 
-        // Ball collision with top and bottom
+       
         if (ball.y <= 0 || ball.y >= canvas.height) {
             ball.speedY = -ball.speedY;
         }
 
-        // Ball collision with paddles
         if (ball.x <= paddleWidth && ball.y >= player.y && ball.y <= player.y + paddleHeight) {
             ball.speedX = -ball.speedX;
             ball.speedX *= 1.1; // Increase speed slightly
@@ -89,7 +85,7 @@ function update() {
             ball.speedX *= 1.1; // Increase speed slightly
         }
 
-        // Computer AI
+       
         const computerCenter = computer.y + paddleHeight / 2;
         if (computerCenter < ball.y - 35) {
             computer.y += computer.speed;
@@ -97,7 +93,6 @@ function update() {
             computer.y -= computer.speed;
         }
 
-        // Score points
         if (ball.x <= 0) {
             computerScore++;
             updateScore();
@@ -109,7 +104,7 @@ function update() {
         }
     }
 
-    // Draw everything
+   
     draw();
     requestAnimationFrame(update);
 }
@@ -119,11 +114,11 @@ function updateScore() {
 }
 
 function draw() {
-    // Clear canvas
+   
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw center line
+    
     ctx.setLineDash([5, 15]);
     ctx.beginPath();
     ctx.moveTo(canvas.width / 2, 0);
@@ -132,12 +127,12 @@ function draw() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Draw paddles
+  
     ctx.fillStyle = 'white';
     ctx.fillRect(0, player.y, paddleWidth, paddleHeight);
     ctx.fillRect(canvas.width - paddleWidth, computer.y, paddleWidth, paddleHeight);
 
-    // Draw ball
+  
     if (gameStarted) {
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ballSize, 0, Math.PI * 2);
@@ -151,5 +146,5 @@ function draw() {
     }
 }
 
-// Start the game loop
+
 update(); 
