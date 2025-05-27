@@ -77,20 +77,17 @@ function findCaptureSequences(row, col, color) {
     function findSequence(currentRow, currentCol, sequence = [], capturedPieces = new Set()) {
         const captures = findPieceCaptures(currentRow, currentCol, color);
         
-        // If no more captures are available, add this sequence if it captured at least one piece
-        if (captures.length === 0) {
-            if (sequence.length > 0) {
-                sequences.add(JSON.stringify({
-                    path: sequence,
-                    row: currentRow,
-                    col: currentCol,
-                    capturedPieces: Array.from(capturedPieces)
-                }));
-            }
-            return;
+        // If we've made at least one capture, add this position as a possible end point
+        if (sequence.length > 0) {
+            sequences.add(JSON.stringify({
+                path: sequence,
+                row: currentRow,
+                col: currentCol,
+                capturedPieces: Array.from(capturedPieces)
+            }));
         }
 
-        // Try each possible capture
+        // Continue exploring more captures if available
         captures.forEach(capture => {
             const captureKey = `${capture.capturedRow},${capture.capturedCol}`;
             // Only proceed if we haven't captured this piece in this sequence
@@ -120,6 +117,24 @@ function findCaptureSequences(row, col, color) {
                 board[capture.row][capture.col] = null;
             }
         });
+
+        // If this is the starting position and we have immediate captures
+        // add them as single-capture sequences
+        if (sequence.length === 0 && captures.length > 0) {
+            captures.forEach(capture => {
+                const singleSequence = [{
+                    from: { row: currentRow, col: currentCol },
+                    to: { row: capture.row, col: capture.col },
+                    captured: { row: capture.capturedRow, col: capture.capturedCol }
+                }];
+                sequences.add(JSON.stringify({
+                    path: singleSequence,
+                    row: capture.row,
+                    col: capture.col,
+                    capturedPieces: [`${capture.capturedRow},${capture.capturedCol}`]
+                }));
+            });
+        }
     }
 
     findSequence(row, col);
