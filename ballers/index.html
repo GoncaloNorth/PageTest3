@@ -1,1 +1,129 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ballers - Checkers Game</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            color: white;
+        }
+        .game-container {
+            display: flex;
+            margin: auto;
+            gap: 40px;
+            align-items: flex-start;
+            padding: 20px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            gap: 0;
+            border: 4px solid #444;
+            background: #444;
+        }
+        .cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .cell.white {
+            background: #fff;
+        }
+        .cell.black {
+            background: #000;
+        }
+        .piece {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: grab;
+            transition: transform 0.2s;
+        }
+        .piece.red {
+            background: radial-gradient(circle at 30% 30%, #ff4444, #cc0000);
+            border: 2px solid #ff6666;
+        }
+        .piece.black {
+            background: radial-gradient(circle at 30% 30%, #444444, #000000);
+            border: 2px solid #666666;
+        }
+        .piece.king::after {
+            content: '♔';
+            color: gold;
+            font-size: 24px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .piece:hover {
+            transform: scale(1.1);
+        }
+        .piece.dragging {
+            opacity: 0.5;
+        }
+        .info-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+        .timer {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        .timer.warning {
+            color: #ff0000;
+            animation: pulse 1s infinite;
+        }
+        .turn-indicator {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: #0077cc;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            transition: background 0.3s;
+        }
+        .back-button:hover {
+            background: #005fa3;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-button">← Back to Menu</a>
+    <div class="game-container">
+        <div class="board" id="board"></div>
+        <div class="info-panel">
+            <div class="timer" id="timer">5</div>
+            <div class="turn-indicator" id="turnIndicator">Red's Turn</div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html> 
