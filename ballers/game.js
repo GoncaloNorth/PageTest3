@@ -1,9 +1,10 @@
-
 let board = [];
 let currentPlayer = 'red';
 let selectedPiece = null;
 let timer = 10;
 let timerInterval;
+let mustCapture = false;
+let lastCapturingPiece = null;
 
 // DOM elements
 const boardElement = document.getElementById('board');
@@ -19,9 +20,9 @@ function initializeBoard() {
         for (let col = 0; col < 8; col++) {
             if ((row + col) % 2 === 1) {
                 if (row < 3) {
-                    board[row][col] = 'black';
+                    board[row][col] = { color: 'black', isKing: false };
                 } else if (row > 4) {
-                    board[row][col] = 'red';
+                    board[row][col] = { color: 'red', isKing: false };
                 }
             }
         }
@@ -49,34 +50,106 @@ function createBoard() {
 }
 
 // Create a game piece
-function createPiece(color, row, col) {
-    const piece = document.createElement('div');
-    piece.className = `piece ${color}`;
-    piece.draggable = color === 'red'; // Only red pieces are draggable
-    piece.dataset.row = row;
-    piece.dataset.col = col;
+function createPiece(piece, row, col) {
+    const pieceElement = document.createElement('div');
+    pieceElement.className = `piece ${piece.color}${piece.isKing ? ' king' : ''}`;
+    pieceElement.draggable = piece.color === 'red';
+    pieceElement.dataset.row = row;
+    pieceElement.dataset.col = col;
     
-    // Drag events only for red pieces
-    if (color === 'red') {
-        piece.addEventListener('dragstart', handleDragStart);
-        piece.addEventListener('dragend', handleDragEnd);
+    if (piece.color === 'red') {
+        pieceElement.addEventListener('dragstart', handleDragStart);
+        pieceElement.addEventListener('dragend', handleDragEnd);
     }
     
-    return piece;
+    return pieceElement;
 }
 
 // Handle drag start
 function handleDragStart(e) {
     if (currentPlayer === 'red') {
-        selectedPiece = {
-            element: e.target,
-            row: parseInt(e.target.dataset.row),
-            col: parseInt(e.target.dataset.col)
-        };
-        e.target.classList.add('dragging');
+        const row = parseInt(e.target.dataset.row);
+        const col = parseInt(e.target.dataset.col);
+        
+        // Check if there are mandatory captures
+        const hasCaptures = findAllCaptures('red').length > 0;
+        
+        if (hasCaptures) {
+            // If this piece can capture, allow drag
+            const pieceCaptures = findPieceCaptures(row, col, 'red');
+            if (pieceCaptures.length > 0) {
+                selectedPiece = { element: e.target, row, col };
+                e.target.classList.add('dragging');
+            } else {
+                e.preventDefault();
+                alert('You must capture when possible!');
+            }
+        } else if (lastCapturingPiece && lastCapturingPiece.row === row && lastCapturingPiece.col === col) {
+            // Allow continued captures
+            const pieceCaptures = findPieceCaptures(row, col, 'red');
+            if (pieceCaptures.length > 0) {
+                selectedPiece = { element: e.target, row, col };
+                e.target.classList.add('dragging');
+            } else {
+                switchTurn();
+                createBoard();
+                setupDropZones();
+                e.preventDefault();
+            }
+        } else if (!hasCaptures && !lastCapturingPiece) {
+            selectedPiece = { element: e.target, row, col };
+            e.target.classList.add('dragging');
+        } else {
+            e.preventDefault();
+        }
     } else {
         e.preventDefault();
     }
+}
+
+// Find all possible captures for a color
+function findAllCaptures(color) {
+    const captures = [];
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            if (board[row][col]?.color === color) {
+                const pieceCaptures = findPieceCaptures(row, col, color);
+                captures.push(...pieceCaptures);
+            }
+        }
+    }
+    return captures;
+}
+
+// Find captures for a specific piece
+function findPieceCaptures(row, col, color) {
+    const captures = [];
+    const piece = board[row][col];
+    if (!piece) return captures;
+
+    const directions = piece.isKing ? 
+        [[2, 2], [2, -2], [-2, 2], [-2, -2]] : // King moves
+        (color === 'red' ? [[-2, 2], [-2, -2]] : [[2, 2], [2, -2]]); // Regular moves
+
+    directions.forEach(([dRow, dCol]) => {
+        const newRow = row + dRow;
+        const newCol = col + dCol;
+        if (isValidPosition(newRow, newCol) && !board[newRow][newCol]) {
+            const midRow = row + dRow/2;
+            const midCol = col + dCol/2;
+            const capturedPiece = board[midRow][midCol];
+            if (capturedPiece && capturedPiece.color !== color) {
+                captures.push({ row: newRow, col: newCol, capturedRow: midRow, capturedCol: midCol });
+            }
+        }
+    });
+    
+    return captures;
+}
+
+// Check if position is within board
+function isValidPosition(row, col) {
+    return row >= 0 && row < 8 && col >= 0 && col < 8;
 }
 
 // Handle drag end
@@ -103,18 +176,35 @@ function handleDrop(e) {
     const targetCol = parseInt(targetCell.dataset.col);
     
     if (isValidMove(selectedPiece.row, selectedPiece.col, targetRow, targetCol)) {
-        // Move the piece
-        board[selectedPiece.row][selectedPiece.col] = null;
-        board[targetRow][targetCol] = currentPlayer;
+        const isCapture = Math.abs(targetRow - selectedPiece.row) === 2;
         
-        // Check for captures
-        if (Math.abs(targetRow - selectedPiece.row) === 2) {
+        // Move the piece
+        const movingPiece = board[selectedPiece.row][selectedPiece.col];
+        board[selectedPiece.row][selectedPiece.col] = null;
+        
+        // Check for king promotion
+        if (targetRow === 0 && movingPiece.color === 'red') {
+            movingPiece.isKing = true;
+        }
+        
+        board[targetRow][targetCol] = movingPiece;
+        
+        if (isCapture) {
             const capturedRow = (targetRow + selectedPiece.row) / 2;
             const capturedCol = (targetCol + selectedPiece.col) / 2;
             board[capturedRow][capturedCol] = null;
+            
+            // Check for additional captures
+            const additionalCaptures = findPieceCaptures(targetRow, targetCol, 'red');
+            if (additionalCaptures.length > 0) {
+                lastCapturingPiece = { row: targetRow, col: targetCol };
+                createBoard();
+                setupDropZones();
+                return;
+            }
         }
         
-        // Switch turns and trigger AI
+        lastCapturingPiece = null;
         switchTurn();
         createBoard();
         setupDropZones();
@@ -125,136 +215,107 @@ function handleDrop(e) {
     }
 }
 
+// Check if move is valid
+function isValidMove(fromRow, fromCol, toRow, toCol) {
+    if (!board[fromRow][fromCol] || board[toRow][toCol]) return false;
+    
+    const piece = board[fromRow][fromCol];
+    const rowDiff = toRow - fromRow;
+    const colDiff = Math.abs(toCol - fromCol);
+    
+    // Check for mandatory captures
+    const hasCaptures = findAllCaptures('red').length > 0;
+    
+    // If there are captures available, only allow capture moves
+    if (hasCaptures) {
+        if (Math.abs(rowDiff) !== 2 || colDiff !== 2) return false;
+        
+        const midRow = (fromRow + toRow) / 2;
+        const midCol = (fromCol + toCol) / 2;
+        const capturedPiece = board[midRow][midCol];
+        
+        return capturedPiece && capturedPiece.color !== piece.color;
+    }
+    
+    // Regular moves
+    if (colDiff === 1) {
+        if (piece.isKing) {
+            return Math.abs(rowDiff) === 1;
+        }
+        return (piece.color === 'red' && rowDiff === -1) ||
+               (piece.color === 'black' && rowDiff === 1);
+    }
+    
+    return false;
+}
+
 // AI move function
 function makeAIMove() {
-    const possibleMoves = [];
+    // First, check for mandatory captures
+    let possibleMoves = findAllCaptures('black');
     
-    // Find all possible moves for black pieces
-    for (let row = 0; row < 8; row++) {
-        for (let col = 0; col < 8; col++) {
-            if (board[row][col] === 'black') {
-                // Check possible captures
-                if (canCapture(row, col)) {
-                    const captures = findCaptures(row, col);
-                    possibleMoves.push(...captures.map(move => ({
-                        fromRow: row,
-                        fromCol: col,
-                        toRow: move.row,
-                        toCol: move.col,
-                        isCapture: true
-                    })));
+    // If no captures, find regular moves
+    if (possibleMoves.length === 0) {
+        possibleMoves = [];
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                if (board[row][col]?.color === 'black') {
+                    const piece = board[row][col];
+                    const directions = piece.isKing ? 
+                        [[1, 1], [1, -1], [-1, 1], [-1, -1]] :
+                        [[1, 1], [1, -1]];
+                    
+                    directions.forEach(([dRow, dCol]) => {
+                        const newRow = row + dRow;
+                        const newCol = col + dCol;
+                        if (isValidPosition(newRow, newCol) && !board[newRow][newCol]) {
+                            possibleMoves.push({
+                                fromRow: row,
+                                fromCol: col,
+                                toRow: newRow,
+                                toCol: newCol
+                            });
+                        }
+                    });
                 }
-                // Check regular moves
-                const moves = findRegularMoves(row, col);
-                possibleMoves.push(...moves.map(move => ({
-                    fromRow: row,
-                    fromCol: col,
-                    toRow: move.row,
-                    toCol: move.col,
-                    isCapture: false
-                })));
             }
         }
     }
     
-    // Prioritize captures
-    const captures = possibleMoves.filter(move => move.isCapture);
-    const moveToMake = captures.length > 0 
-        ? captures[Math.floor(Math.random() * captures.length)]
-        : possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-    
-    if (moveToMake) {
-        // Make the move
-        board[moveToMake.fromRow][moveToMake.fromCol] = null;
-        board[moveToMake.toRow][moveToMake.toCol] = 'black';
+    if (possibleMoves.length > 0) {
+        const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+        const piece = board[move.fromRow][move.fromCol];
         
-        if (moveToMake.isCapture) {
-            const capturedRow = (moveToMake.toRow + moveToMake.fromRow) / 2;
-            const capturedCol = (moveToMake.toCol + moveToMake.fromCol) / 2;
+        // Move the piece
+        board[move.fromRow][move.fromCol] = null;
+        
+        // Check for king promotion
+        if (move.toRow === 7) {
+            piece.isKing = true;
+        }
+        
+        board[move.toRow][move.toCol] = piece;
+        
+        // Handle capture
+        if (Math.abs(move.toRow - move.fromRow) === 2) {
+            const capturedRow = (move.toRow + move.fromRow) / 2;
+            const capturedCol = (move.toCol + move.fromCol) / 2;
             board[capturedRow][capturedCol] = null;
+            
+            // Check for additional captures
+            const additionalCaptures = findPieceCaptures(move.toRow, move.toCol, 'black');
+            if (additionalCaptures.length > 0) {
+                // AI will always take additional captures
+                setTimeout(() => makeAIMove(), 500);
+                createBoard();
+                return;
+            }
         }
         
         switchTurn();
         createBoard();
         setupDropZones();
     }
-}
-
-// Helper functions for AI
-function canCapture(row, col) {
-    const directions = [[2, 2], [2, -2], [-2, 2], [-2, -2]];
-    return directions.some(([dRow, dCol]) => {
-        const newRow = row + dRow;
-        const newCol = col + dCol;
-        if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
-            const midRow = row + dRow/2;
-            const midCol = col + dCol/2;
-            return board[newRow][newCol] === null && 
-                   board[midRow][midCol] === 'red';
-        }
-        return false;
-    });
-}
-
-function findCaptures(row, col) {
-    const captures = [];
-    const directions = [[2, 2], [2, -2], [-2, 2], [-2, -2]];
-    
-    directions.forEach(([dRow, dCol]) => {
-        const newRow = row + dRow;
-        const newCol = col + dCol;
-        if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
-            const midRow = row + dRow/2;
-            const midCol = col + dCol/2;
-            if (board[newRow][newCol] === null && board[midRow][midCol] === 'red') {
-                captures.push({ row: newRow, col: newCol });
-            }
-        }
-    });
-    
-    return captures;
-}
-
-function findRegularMoves(row, col) {
-    const moves = [];
-    const directions = [[1, 1], [1, -1]]; // Black moves downward
-    
-    directions.forEach(([dRow, dCol]) => {
-        const newRow = row + dRow;
-        const newCol = col + dCol;
-        if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
-            if (board[newRow][newCol] === null) {
-                moves.push({ row: newRow, col: newCol });
-            }
-        }
-    });
-    
-    return moves;
-}
-
-// Check if move is valid
-function isValidMove(fromRow, fromCol, toRow, toCol) {
-    if (board[toRow][toCol] !== null) return false;
-    
-    const rowDiff = toRow - fromRow;
-    const colDiff = Math.abs(toCol - fromCol);
-    
-    // Normal move
-    if (colDiff === 1) {
-        if (currentPlayer === 'red' && rowDiff === -1) return true;
-        if (currentPlayer === 'black' && rowDiff === 1) return true;
-    }
-    
-    // Capture move
-    if (colDiff === 2 && Math.abs(rowDiff) === 2) {
-        const capturedRow = (toRow + fromRow) / 2;
-        const capturedCol = (toCol + fromCol) / 2;
-        const capturedPiece = board[capturedRow][capturedCol];
-        
-        return capturedPiece && capturedPiece !== currentPlayer;
-    }
-    
-    return false;
 }
 
 // Switch turns and reset timer
@@ -307,3 +368,5 @@ function initGame() {
 
 // Start the game
 initGame(); 
+
+
