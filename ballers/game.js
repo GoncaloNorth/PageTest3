@@ -132,13 +132,17 @@ function findRegularMoves(row, col) {
     const piece = board[row][col];
     if (!piece) return moves;
 
+    // Define move directions based on piece type
     const directions = piece.isKing ? 
-        [[1, 1], [1, -1], [-1, 1], [-1, -1]] : // King moves
-        (piece.color === 'red' ? [[-1, 1], [-1, -1]] : [[1, 1], [1, -1]]); // Regular moves
+        [[1, 1], [1, -1], [-1, 1], [-1, -1]] : // King moves in all diagonal directions
+        [[1, 1], [1, -1]]; // Regular black pieces move downward only
 
+    // Check each possible direction
     directions.forEach(([dRow, dCol]) => {
         const newRow = row + dRow;
         const newCol = col + dCol;
+        
+        // Check if the move is within bounds and the target square is empty
         if (isValidPosition(newRow, newCol) && !board[newRow][newCol]) {
             moves.push({ row: newRow, col: newCol });
         }
@@ -200,18 +204,27 @@ function findPieceCaptures(row, col, color) {
 
     // Define capture directions based on piece type
     const directions = piece.isKing ? 
-        [[2, 2], [2, -2], [-2, 2], [-2, -2]] : // King moves
-        (color === 'red' ? [[-2, 2], [-2, -2]] : [[2, 2], [2, -2]]); // Regular moves
+        [[2, 2], [2, -2], [-2, 2], [-2, -2]] : // King captures in all directions
+        (color === 'red' ? [[-2, 2], [-2, -2]] : [[2, 2], [2, -2]]); // Regular pieces based on color
 
     directions.forEach(([dRow, dCol]) => {
         const newRow = row + dRow;
         const newCol = col + dCol;
+        
+        // Check if the landing square is valid and empty
         if (isValidPosition(newRow, newCol) && !board[newRow][newCol]) {
             const midRow = row + dRow/2;
             const midCol = col + dCol/2;
             const capturedPiece = board[midRow][midCol];
+            
+            // Check if there's an opponent's piece to capture
             if (capturedPiece && capturedPiece.color !== color) {
-                captures.push({ row: newRow, col: newCol, capturedRow: midRow, capturedCol: midCol });
+                captures.push({ 
+                    row: newRow, 
+                    col: newCol, 
+                    capturedRow: midRow, 
+                    capturedCol: midCol 
+                });
             }
         }
     });
@@ -219,7 +232,7 @@ function findPieceCaptures(row, col, color) {
     return captures;
 }
 
-// Check if position is within board
+// Check if position is within board boundaries
 function isValidPosition(row, col) {
     return row >= 0 && row < 8 && col >= 0 && col < 8;
 }
@@ -338,28 +351,25 @@ function makeAIMove() {
         possibleMoves = [];
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
-                if (board[row][col]?.color === 'black') {
-                    const piece = board[row][col];
-                    const directions = piece.isKing ? 
-                        [[1, 1], [1, -1], [-1, 1], [-1, -1]] :
-                        [[1, 1], [1, -1]];
-                    
-                    directions.forEach(([dRow, dCol]) => {
-                        const newRow = row + dRow;
-                        const newCol = col + dCol;
-                        if (isValidPosition(newRow, newCol) && !board[newRow][newCol]) {
-                            possibleMoves.push({
-                                fromRow: row,
-                                fromCol: col,
-                                toRow: newRow,
-                                toCol: newCol
-                            });
-                        }
+                const piece = board[row][col];
+                if (piece?.color === 'black') {
+                    // Get valid moves for this piece
+                    const regularMoves = findRegularMoves(row, col);
+                    regularMoves.forEach(move => {
+                        possibleMoves.push({
+                            fromRow: row,
+                            fromCol: col,
+                            toRow: move.row,
+                            toCol: move.col
+                        });
                     });
                 }
             }
         }
     }
+    
+    // Debug log
+    console.log('AI possible moves:', possibleMoves);
     
     if (possibleMoves.length > 0) {
         const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
@@ -386,6 +396,10 @@ function makeAIMove() {
         switchTurn();
         createBoard();
         setupDropZones();
+    } else {
+        // If no moves are available, game might be over
+        console.log('No moves available for AI');
+        // You might want to handle game over condition here
     }
 }
 
