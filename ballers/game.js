@@ -205,7 +205,7 @@ function findPieceCaptures(row, col, color) {
     // Define capture directions based on piece type
     const directions = piece.isKing ? 
         [[2, 2], [2, -2], [-2, 2], [-2, -2]] : // King captures in all directions
-        (color === 'red' ? [[-2, 2], [-2, -2]] : [[2, 2], [2, -2]]); // Regular pieces based on color
+        [[2, 2], [2, -2]]; // Regular black pieces capture downward only
 
     directions.forEach(([dRow, dCol]) => {
         const newRow = row + dRow;
@@ -344,23 +344,43 @@ function checkForMissedCaptures() {
 // Make AI move
 function makeAIMove() {
     // First check for mandatory captures
-    let possibleMoves = findAllCaptures('black');
+    let possibleMoves = [];
+    
+    // Find all pieces that can capture
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const piece = board[row][col];
+            if (piece?.color === 'black') {
+                const captures = findPieceCaptures(row, col, 'black');
+                captures.forEach(capture => {
+                    possibleMoves.push({
+                        fromRow: row,
+                        fromCol: col,
+                        toRow: capture.row,
+                        toCol: capture.col,
+                        isCapture: true,
+                        capturedRow: capture.capturedRow,
+                        capturedCol: capture.capturedCol
+                    });
+                });
+            }
+        }
+    }
     
     // If no captures available, find regular moves
     if (possibleMoves.length === 0) {
-        possibleMoves = [];
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
                 if (piece?.color === 'black') {
-                    // Get valid moves for this piece
                     const regularMoves = findRegularMoves(row, col);
                     regularMoves.forEach(move => {
                         possibleMoves.push({
                             fromRow: row,
                             fromCol: col,
                             toRow: move.row,
-                            toCol: move.col
+                            toCol: move.col,
+                            isCapture: false
                         });
                     });
                 }
@@ -372,24 +392,29 @@ function makeAIMove() {
     console.log('AI possible moves:', possibleMoves);
     
     if (possibleMoves.length > 0) {
-        const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-        const piece = board[move.fromRow][move.fromCol];
+        // Prioritize captures if available
+        const captures = possibleMoves.filter(move => move.isCapture);
+        const moveToMake = captures.length > 0 ? 
+            captures[Math.floor(Math.random() * captures.length)] :
+            possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+            
+        console.log('AI chosen move:', moveToMake);
+        
+        const piece = board[moveToMake.fromRow][moveToMake.fromCol];
         
         // Move the piece
-        board[move.fromRow][move.fromCol] = null;
+        board[moveToMake.fromRow][moveToMake.fromCol] = null;
         
         // Check for king promotion
-        if (move.toRow === 7) {
+        if (moveToMake.toRow === 7) {
             piece.isKing = true;
         }
         
-        board[move.toRow][move.toCol] = piece;
+        board[moveToMake.toRow][moveToMake.toCol] = piece;
         
         // Handle capture
-        if (Math.abs(move.toRow - move.fromRow) === 2) {
-            const capturedRow = (move.toRow + move.fromRow) / 2;
-            const capturedCol = (move.toCol + move.fromCol) / 2;
-            board[capturedRow][capturedCol] = null;
+        if (moveToMake.isCapture) {
+            board[moveToMake.capturedRow][moveToMake.capturedCol] = null;
         }
         
         // Always switch turns after a move
@@ -399,7 +424,6 @@ function makeAIMove() {
     } else {
         // If no moves are available, game might be over
         console.log('No moves available for AI');
-        // You might want to handle game over condition here
     }
 }
 
