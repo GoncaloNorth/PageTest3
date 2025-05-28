@@ -14,6 +14,8 @@ let gameRunning = true;
 let score1 = 0;
 let score2 = 0;
 let lastTime = 0;
+let player1Lost = false;
+let player2Lost = false;
 
 // Snake 1 (WASD controls)
 const snake1 = {
@@ -22,7 +24,8 @@ const snake1 = {
     dx: 1,
     dy: 0,
     cells: [{x: Math.floor(tileCount / 4), y: Math.floor(tileCount / 2)}],
-    maxCells: 4
+    maxCells: 4,
+    active: true
 };
 
 // Snake 2 (Arrow controls)
@@ -32,7 +35,8 @@ const snake2 = {
     dx: -1,
     dy: 0,
     cells: [{x: Math.floor(3 * tileCount / 4), y: Math.floor(tileCount / 2)}],
-    maxCells: 4
+    maxCells: 4,
+    active: true
 };
 
 // Food objects
@@ -107,11 +111,6 @@ function getRandomFood(snake) {
 }
 
 function drawGame(currentTime) {
-    if (!gameRunning) {
-        requestAnimationFrame(drawGame);
-        return;
-    }
-
     // Control game speed
     if (currentTime - lastTime < gameSpeed) {
         requestAnimationFrame(drawGame);
@@ -119,24 +118,34 @@ function drawGame(currentTime) {
     }
     lastTime = currentTime;
 
-    // Clear canvases with grid
-    drawGrid(ctx1);
-    drawGrid(ctx2);
+    // Clear canvases
+    ctx1.fillStyle = '#2a2a2a';
+    ctx1.fillRect(0, 0, canvas1.width, canvas1.height);
+    ctx2.fillStyle = '#2a2a2a';
+    ctx2.fillRect(0, 0, canvas2.width, canvas2.height);
 
-    // Move snakes
-    moveSnake(snake1);
-    moveSnake(snake2);
+    // Move and draw snakes if they're active
+    if (snake1.active) {
+        moveSnake(snake1);
+        drawSnake(ctx1, snake1, '#00ff00');
+    }
+    if (snake2.active) {
+        moveSnake(snake2);
+        drawSnake(ctx2, snake2, '#0000ff');
+    }
 
-    // Draw everything
-    drawSnake(ctx1, snake1, '#00ff00');
-    drawSnake(ctx2, snake2, '#0000ff');
+    // Draw food
     drawFood();
 
     // Check collisions and update score
     checkCollisions();
 
-    // Next frame
-    requestAnimationFrame(drawGame);
+    // Check if both players have lost
+    if (player1Lost && player2Lost) {
+        showFinalGameOver();
+    } else {
+        requestAnimationFrame(drawGame);
+    }
 }
 
 function moveSnake(snake) {
@@ -146,7 +155,13 @@ function moveSnake(snake) {
 
     // Check wall collision
     if (snake.x < 0 || snake.x >= tileCount || snake.y < 0 || snake.y >= tileCount) {
-        gameOver(snake === snake1 ? 2 : 1);
+        if (snake === snake1) {
+            player1Lost = true;
+            snake1.active = false;
+        } else {
+            player2Lost = true;
+            snake2.active = false;
+        }
         return;
     }
 
@@ -159,70 +174,94 @@ function moveSnake(snake) {
 
 function drawSnake(ctx, snake, color) {
     ctx.fillStyle = color;
-    snake.cells.forEach(function(cell, index) {
+    
+    // Draw snake body
+    snake.cells.forEach((cell, index) => {
+        const x = cell.x * gridSize;
+        const y = cell.y * gridSize;
+        
         if (index === 0) {
-            // Draw head slightly darker
+            // Draw head
             ctx.fillStyle = color.replace('ff', 'cc');
         } else {
             ctx.fillStyle = color;
         }
-        ctx.fillRect(cell.x * gridSize, cell.y * gridSize, gridSize - 1, gridSize - 1);
+        
+        // Draw rounded rectangle for each segment
+        ctx.beginPath();
+        if (index === 0) {
+            // Head segment
+            ctx.arc(x + gridSize/2, y + gridSize/2, gridSize/2, 0, Math.PI * 2);
+        } else {
+            // Body segment - connect to previous segment
+            const prev = snake.cells[index - 1];
+            const next = snake.cells[index + 1];
+            
+            // Draw rounded segment
+            ctx.arc(x + gridSize/2, y + gridSize/2, gridSize/2, 0, Math.PI * 2);
+            
+            // Connect to previous segment
+            if (prev) {
+                const midX = (x + prev.x * gridSize) / 2;
+                const midY = (y + prev.y * gridSize) / 2;
+                ctx.fillRect(midX, y, gridSize, gridSize);
+            }
+        }
+        ctx.fill();
     });
 }
 
 function drawFood() {
-    ctx1.fillStyle = '#ff0000';
-    ctx1.fillRect(food1.x * gridSize, food1.y * gridSize, gridSize - 1, gridSize - 1);
-    ctx2.fillStyle = '#ff0000';
-    ctx2.fillRect(food2.x * gridSize, food2.y * gridSize, gridSize - 1, gridSize - 1);
-}
-
-function drawGrid(ctx) {
-    ctx.fillStyle = '#2a2a2a';
-    ctx.fillRect(0, 0, canvas1.width, canvas1.height);
-    
-    ctx.strokeStyle = '#3a3a3a';
-    ctx.lineWidth = 0.5;
-    
-    for (let i = 0; i <= tileCount; i++) {
+    // Draw circular food
+    [
+        {ctx: ctx1, food: food1},
+        {ctx: ctx2, food: food2}
+    ].forEach(({ctx, food}) => {
+        ctx.fillStyle = '#ff0000';
         ctx.beginPath();
-        ctx.moveTo(i * gridSize, 0);
-        ctx.lineTo(i * gridSize, canvas1.height);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.moveTo(0, i * gridSize);
-        ctx.lineTo(canvas1.width, i * gridSize);
-        ctx.stroke();
-    }
+        ctx.arc(
+            food.x * gridSize + gridSize/2,
+            food.y * gridSize + gridSize/2,
+            gridSize/2 - 2,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+    });
 }
 
 function checkCollisions() {
     // Check for self collision - Snake 1
-    for (let i = 1; i < snake1.cells.length; i++) {
-        if (snake1.x === snake1.cells[i].x && snake1.y === snake1.cells[i].y) {
-            gameOver(2); // Player 2 wins
-            return;
+    if (snake1.active) {
+        for (let i = 1; i < snake1.cells.length; i++) {
+            if (snake1.x === snake1.cells[i].x && snake1.y === snake1.cells[i].y) {
+                player1Lost = true;
+                snake1.active = false;
+                break;
+            }
         }
     }
 
     // Check for self collision - Snake 2
-    for (let i = 1; i < snake2.cells.length; i++) {
-        if (snake2.x === snake2.cells[i].x && snake2.y === snake2.cells[i].y) {
-            gameOver(1); // Player 1 wins
-            return;
+    if (snake2.active) {
+        for (let i = 1; i < snake2.cells.length; i++) {
+            if (snake2.x === snake2.cells[i].x && snake2.y === snake2.cells[i].y) {
+                player2Lost = true;
+                snake2.active = false;
+                break;
+            }
         }
     }
 
     // Check for food collision
-    if (snake1.x === food1.x && snake1.y === food1.y) {
+    if (snake1.active && snake1.x === food1.x && snake1.y === food1.y) {
         snake1.maxCells++;
         score1++;
         document.getElementById('score1').textContent = score1;
         Object.assign(food1, getRandomFood(snake1));
     }
 
-    if (snake2.x === food2.x && snake2.y === food2.y) {
+    if (snake2.active && snake2.x === food2.x && snake2.y === food2.y) {
         snake2.maxCells++;
         score2++;
         document.getElementById('score2').textContent = score2;
@@ -230,61 +269,42 @@ function checkCollisions() {
     }
 }
 
-function gameOver(winner) {
+function showFinalGameOver() {
     gameRunning = false;
     
-    // Draw game over screen on both canvases
-    [ctx1, ctx2].forEach(ctx => {
-        // Semi-transparent overlay
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-        ctx.fillRect(0, 0, canvas1.width, canvas1.height);
-        
-        // Winner text
-        ctx.fillStyle = 'white';
-        ctx.font = '48px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`Player ${winner} Won!`, canvas1.width/2, canvas1.height/2 - 40);
+    // Create an overlay div for the game over screen
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '50%';
+    overlay.style.left = '50%';
+    overlay.style.transform = 'translate(-50%, -50%)';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+    overlay.style.padding = '40px';
+    overlay.style.borderRadius = '10px';
+    overlay.style.textAlign = 'center';
+    overlay.style.color = 'white';
+    overlay.style.zIndex = '1000';
 
-        // Create buttons
-        const buttonY = canvas1.height/2 + 20;
-        
-        // Home button
-        ctx.fillStyle = '#4CAF50';
-        ctx.fillRect(canvas1.width/2 - 120, buttonY, 100, 40);
-        ctx.fillStyle = 'white';
-        ctx.font = '20px Arial';
-        ctx.fillText('Home', canvas1.width/2 - 70, buttonY + 25);
-        
-        // Rematch button
-        ctx.fillStyle = '#2196F3';
-        ctx.fillRect(canvas1.width/2 + 20, buttonY, 100, 40);
-        ctx.fillStyle = 'white';
-        ctx.fillText('Rematch', canvas1.width/2 + 70, buttonY + 25);
-    });
-
-    // Add click handlers for buttons
-    function handleClick(e) {
-        const rect = canvas1.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const buttonY = canvas1.height/2 + 20;
-
-        if (y >= buttonY && y <= buttonY + 40) {
-            if (x >= canvas1.width/2 - 120 && x <= canvas1.width/2 - 20) {
-                // Home button clicked
-                window.location.href = '/';
-            } else if (x >= canvas1.width/2 + 20 && x <= canvas1.width/2 + 120) {
-                // Rematch button clicked
-                resetGame();
-                canvas1.removeEventListener('click', handleClick);
-                canvas2.removeEventListener('click', handleClick);
-            }
-        }
+    // Determine the winner
+    let winnerText;
+    if (score1 > score2) {
+        winnerText = 'Player 1 Won!';
+    } else if (score2 > score1) {
+        winnerText = 'Player 2 Won!';
+    } else {
+        winnerText = "It's a Tie!";
     }
 
-    canvas1.addEventListener('click', handleClick);
-    canvas2.addEventListener('click', handleClick);
+    overlay.innerHTML = `
+        <h2 style="font-size: 32px; margin-bottom: 20px;">${winnerText}</h2>
+        <p style="font-size: 20px; margin-bottom: 30px;">Final Score: ${score1} - ${score2}</p>
+        <div style="display: flex; justify-content: center; gap: 20px;">
+            <button onclick="window.location.href='/'" style="padding: 10px 20px; font-size: 18px; background: #4CAF50; border: none; color: white; cursor: pointer; border-radius: 5px;">Home</button>
+            <button onclick="resetGame(); document.body.removeChild(this.parentElement.parentElement);" style="padding: 10px 20px; font-size: 18px; background: #2196F3; border: none; color: white; cursor: pointer; border-radius: 5px;">Rematch</button>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
 }
 
 function resetGame() {
@@ -295,6 +315,7 @@ function resetGame() {
     snake1.maxCells = 4;
     snake1.dx = 1;
     snake1.dy = 0;
+    snake1.active = true;
 
     // Reset snake 2
     snake2.x = Math.floor(3 * tileCount / 4);
@@ -303,10 +324,13 @@ function resetGame() {
     snake2.maxCells = 4;
     snake2.dx = -1;
     snake2.dy = 0;
+    snake2.active = true;
 
-    // Reset scores
+    // Reset scores and states
     score1 = 0;
     score2 = 0;
+    player1Lost = false;
+    player2Lost = false;
     document.getElementById('score1').textContent = '0';
     document.getElementById('score2').textContent = '0';
 
@@ -317,9 +341,10 @@ function resetGame() {
     // Reset game state
     gameRunning = true;
     lastTime = 0;
+
+    // Restart game loop
+    requestAnimationFrame(drawGame);
 }
 
 // Initialize the game
-console.log('Game initializing...'); // Debug log
 resetGame();
-drawGame(0);
