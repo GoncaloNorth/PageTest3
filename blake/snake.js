@@ -8,6 +8,8 @@ const ctx2 = canvas2.getContext('2d');
 const gridSize = 20;
 const tileCount = 20;
 const gameSpeed = 150; // Controls snake speed (higher = slower)
+const framesPerMove = 10; // Number of frames to interpolate between moves
+let currentFrame = 0;
 
 // Initialize game state
 let gameRunning = true;
@@ -25,7 +27,9 @@ const snake1 = {
     dy: 0,
     cells: [{x: Math.floor(tileCount / 4), y: Math.floor(tileCount / 2)}],
     maxCells: 4,
-    active: true
+    active: true,
+    lastX: Math.floor(tileCount / 4),
+    lastY: Math.floor(tileCount / 2)
 };
 
 // Snake 2 (Arrow controls)
@@ -36,7 +40,9 @@ const snake2 = {
     dy: 0,
     cells: [{x: Math.floor(3 * tileCount / 4), y: Math.floor(tileCount / 2)}],
     maxCells: 4,
-    active: true
+    active: true,
+    lastX: Math.floor(3 * tileCount / 4),
+    lastY: Math.floor(tileCount / 2)
 };
 
 // Food objects
@@ -112,7 +118,7 @@ function getRandomFood(snake) {
 
 function drawGame(currentTime) {
     // Control game speed
-    if (currentTime - lastTime < gameSpeed) {
+    if (currentTime - lastTime < gameSpeed / framesPerMove) {
         requestAnimationFrame(drawGame);
         return;
     }
@@ -124,29 +130,23 @@ function drawGame(currentTime) {
     ctx2.fillStyle = '#2a2a2a';
     ctx2.fillRect(0, 0, canvas2.width, canvas2.height);
 
-    // Move and draw snakes if they're active
-    if (snake1.active) {
-        moveSnake(snake1);
-        drawSnake(ctx1, snake1, '#00ff00');
-    }
-    if (snake2.active) {
-        moveSnake(snake2);
-        drawSnake(ctx2, snake2, '#0000ff');
+    currentFrame = (currentFrame + 1) % framesPerMove;
+    
+    if (currentFrame === 0) {
+        // Move snakes on frame 0
+        if (snake1.active) moveSnake(snake1);
+        if (snake2.active) moveSnake(snake2);
+        checkCollisions();
     }
 
-    // Draw food
+    // Draw everything with interpolation
+    if (snake1.active) drawSnake(ctx1, snake1, '#00ff00', currentFrame / framesPerMove);
+    if (snake2.active) drawSnake(ctx2, snake2, '#0000ff', currentFrame / framesPerMove);
     drawFood();
 
     // Draw "LOST" message if needed
-    if (!snake1.active) {
-        drawLostMessage(ctx1);
-    }
-    if (!snake2.active) {
-        drawLostMessage(ctx2);
-    }
-
-    // Check collisions and update score
-    checkCollisions();
+    if (!snake1.active) drawLostMessage(ctx1);
+    if (!snake2.active) drawLostMessage(ctx2);
 
     // Check if both players have lost
     if (player1Lost && player2Lost) {
@@ -156,22 +156,42 @@ function drawGame(currentTime) {
     }
 }
 
-function drawSnake(ctx, snake, color) {
-    // Draw snake body
+function drawSnake(ctx, snake, color, interpolation) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = gridSize - 1;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Start the path
+    ctx.beginPath();
+
+    // Draw snake body as a continuous line
     snake.cells.forEach((cell, index) => {
-        const x = cell.x * gridSize;
-        const y = cell.y * gridSize;
-        
+        const x = index === 0 ? 
+            (cell.lastX + (cell.x - cell.lastX) * interpolation) * gridSize + gridSize/2 :
+            cell.x * gridSize + gridSize/2;
+        const y = index === 0 ? 
+            (cell.lastY + (cell.y - cell.lastY) * interpolation) * gridSize + gridSize/2 :
+            cell.y * gridSize + gridSize/2;
+
         if (index === 0) {
-            // Draw head slightly darker
-            ctx.fillStyle = color.replace('ff', 'cc');
+            ctx.moveTo(x, y);
         } else {
-            ctx.fillStyle = color;
+            ctx.lineTo(x, y);
         }
-        
-        // Draw rectangular segment
-        ctx.fillRect(x, y, gridSize - 1, gridSize - 1);
     });
+
+    // Draw the path
+    ctx.stroke();
+
+    // Draw head
+    const headX = (snake.lastX + (snake.x - snake.lastX) * interpolation) * gridSize + gridSize/2;
+    const headY = (snake.lastY + (snake.y - snake.lastY) * interpolation) * gridSize + gridSize/2;
+    
+    ctx.fillStyle = color.replace('ff', 'cc');
+    ctx.beginPath();
+    ctx.arc(headX, headY, gridSize/2 - 1, 0, Math.PI * 2);
+    ctx.fill();
 }
 
 function drawFood() {
@@ -205,6 +225,10 @@ function drawLostMessage(ctx) {
 }
 
 function moveSnake(snake) {
+    // Store last position for interpolation
+    snake.lastX = snake.x;
+    snake.lastY = snake.y;
+
     // Update position
     snake.x += snake.dx;
     snake.y += snake.dy;
@@ -221,12 +245,6 @@ function moveSnake(snake) {
         return;
     }
 
-    // Update snake cells
-    snake.cells.unshift({x: snake.x, y: snake.y});
-    if (snake.cells.length > snake.maxCells) {
-        snake.cells.pop();
-    }
-
     // Check for self collision
     for (let i = 1; i < snake.cells.length; i++) {
         if (snake.x === snake.cells[i].x && snake.y === snake.cells[i].y) {
@@ -239,6 +257,12 @@ function moveSnake(snake) {
             }
             return;
         }
+    }
+
+    // Update snake cells
+    snake.cells.unshift({x: snake.x, y: snake.y, lastX: snake.lastX, lastY: snake.lastY});
+    if (snake.cells.length > snake.maxCells) {
+        snake.cells.pop();
     }
 }
 
@@ -301,7 +325,9 @@ function resetGame() {
     // Reset snake 1
     snake1.x = Math.floor(tileCount / 4);
     snake1.y = Math.floor(tileCount / 2);
-    snake1.cells = [{x: snake1.x, y: snake1.y}];
+    snake1.lastX = snake1.x;
+    snake1.lastY = snake1.y;
+    snake1.cells = [{x: snake1.x, y: snake1.y, lastX: snake1.x, lastY: snake1.y}];
     snake1.maxCells = 4;
     snake1.dx = 1;
     snake1.dy = 0;
@@ -310,7 +336,9 @@ function resetGame() {
     // Reset snake 2
     snake2.x = Math.floor(3 * tileCount / 4);
     snake2.y = Math.floor(tileCount / 2);
-    snake2.cells = [{x: snake2.x, y: snake2.y}];
+    snake2.lastX = snake2.x;
+    snake2.lastY = snake2.y;
+    snake2.cells = [{x: snake2.x, y: snake2.y, lastX: snake2.x, lastY: snake2.y}];
     snake2.maxCells = 4;
     snake2.dx = -1;
     snake2.dy = 0;
@@ -321,6 +349,7 @@ function resetGame() {
     score2 = 0;
     player1Lost = false;
     player2Lost = false;
+    currentFrame = 0;
     document.getElementById('score1').textContent = '0';
     document.getElementById('score2').textContent = '0';
 
