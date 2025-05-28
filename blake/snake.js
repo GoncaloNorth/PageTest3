@@ -157,41 +157,69 @@ function drawGame(currentTime) {
 }
 
 function drawSnake(ctx, snake, color, interpolation) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = gridSize - 1;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // Start the path
-    ctx.beginPath();
-
-    // Draw snake body as a continuous line
-    snake.cells.forEach((cell, index) => {
-        const x = index === 0 ? 
-            (cell.lastX + (cell.x - cell.lastX) * interpolation) * gridSize + gridSize/2 :
-            cell.x * gridSize + gridSize/2;
-        const y = index === 0 ? 
-            (cell.lastY + (cell.y - cell.lastY) * interpolation) * gridSize + gridSize/2 :
-            cell.y * gridSize + gridSize/2;
-
-        if (index === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
-    });
-
-    // Draw the path
-    ctx.stroke();
-
-    // Draw head
-    const headX = (snake.lastX + (snake.x - snake.lastX) * interpolation) * gridSize + gridSize/2;
-    const headY = (snake.lastY + (snake.y - snake.lastY) * interpolation) * gridSize + gridSize/2;
+    ctx.fillStyle = color;
     
-    ctx.fillStyle = color.replace('ff', 'cc');
-    ctx.beginPath();
-    ctx.arc(headX, headY, gridSize/2 - 1, 0, Math.PI * 2);
-    ctx.fill();
+    // Calculate interpolated positions for all segments
+    const positions = [];
+    for (let i = 0; i < snake.cells.length; i++) {
+        const cell = snake.cells[i];
+        if (i === 0) {
+            // Head position is interpolated between last and current position
+            positions.push({
+                x: (cell.lastX + (cell.x - cell.lastX) * interpolation) * gridSize,
+                y: (cell.lastY + (cell.y - cell.lastY) * interpolation) * gridSize
+            });
+        } else {
+            // Body segments follow the path of the segment in front of them
+            const prevCell = snake.cells[i - 1];
+            const progress = Math.max(0, interpolation - 0.1 * i); // Delayed follow effect
+            positions.push({
+                x: (cell.x + (prevCell.x - cell.x) * progress) * gridSize,
+                y: (cell.y + (prevCell.y - cell.y) * progress) * gridSize
+            });
+        }
+    }
+
+    // Draw the snake body
+    for (let i = positions.length - 1; i >= 0; i--) {
+        const pos = positions[i];
+        
+        // For head, use slightly darker color
+        if (i === 0) {
+            ctx.fillStyle = color.replace('ff', 'cc');
+        } else {
+            ctx.fillStyle = color;
+        }
+
+        // Draw the segment
+        ctx.fillRect(pos.x, pos.y, gridSize - 1, gridSize - 1);
+
+        // If not the last segment, draw connection to next segment
+        if (i < positions.length - 1) {
+            const nextPos = positions[i + 1];
+            const dx = nextPos.x - pos.x;
+            const dy = nextPos.y - pos.y;
+
+            // Draw connecting rectangle between segments
+            if (dx !== 0) {
+                // Horizontal connection
+                ctx.fillRect(
+                    Math.min(pos.x, nextPos.x),
+                    pos.y,
+                    Math.abs(dx) + gridSize - 1,
+                    gridSize - 1
+                );
+            } else if (dy !== 0) {
+                // Vertical connection
+                ctx.fillRect(
+                    pos.x,
+                    Math.min(pos.y, nextPos.y),
+                    gridSize - 1,
+                    Math.abs(dy) + gridSize - 1
+                );
+            }
+        }
+    }
 }
 
 function drawFood() {
@@ -259,10 +287,24 @@ function moveSnake(snake) {
         }
     }
 
-    // Update snake cells
-    snake.cells.unshift({x: snake.x, y: snake.y, lastX: snake.lastX, lastY: snake.lastY});
+    // Update snake cells with position history
+    const newCell = {
+        x: snake.x,
+        y: snake.y,
+        lastX: snake.lastX,
+        lastY: snake.lastY
+    };
+
+    // Update position history for all cells
+    snake.cells.unshift(newCell);
     if (snake.cells.length > snake.maxCells) {
         snake.cells.pop();
+    }
+
+    // Update last positions for remaining cells
+    for (let i = 1; i < snake.cells.length; i++) {
+        snake.cells[i].lastX = snake.cells[i].x;
+        snake.cells[i].lastY = snake.cells[i].y;
     }
 }
 
