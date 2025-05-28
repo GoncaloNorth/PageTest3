@@ -1,4 +1,4 @@
-// Get the canvas elements and their contexts
+/// Get the canvas elements and their contexts
 const canvas1 = document.getElementById('gameCanvas1');
 const canvas2 = document.getElementById('gameCanvas2');
 const ctx1 = canvas1.getContext('2d');
