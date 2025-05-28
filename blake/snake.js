@@ -137,6 +137,14 @@ function drawGame(currentTime) {
     // Draw food
     drawFood();
 
+    // Draw "LOST" message if needed
+    if (!snake1.active) {
+        drawLostMessage(ctx1);
+    }
+    if (!snake2.active) {
+        drawLostMessage(ctx2);
+    }
+
     // Check collisions and update score
     checkCollisions();
 
@@ -146,6 +154,54 @@ function drawGame(currentTime) {
     } else {
         requestAnimationFrame(drawGame);
     }
+}
+
+function drawSnake(ctx, snake, color) {
+    // Draw snake body
+    snake.cells.forEach((cell, index) => {
+        const x = cell.x * gridSize;
+        const y = cell.y * gridSize;
+        
+        if (index === 0) {
+            // Draw head slightly darker
+            ctx.fillStyle = color.replace('ff', 'cc');
+        } else {
+            ctx.fillStyle = color;
+        }
+        
+        // Draw rectangular segment
+        ctx.fillRect(x, y, gridSize - 1, gridSize - 1);
+    });
+}
+
+function drawFood() {
+    // Draw circular food
+    [
+        {ctx: ctx1, food: food1},
+        {ctx: ctx2, food: food2}
+    ].forEach(({ctx, food}) => {
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(
+            food.x * gridSize + gridSize/2,
+            food.y * gridSize + gridSize/2,
+            gridSize/2 - 2,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+    });
+}
+
+function drawLostMessage(ctx) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, canvas1.width, 60);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 36px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LOST', canvas1.width/2, 30);
 }
 
 function moveSnake(snake) {
@@ -170,89 +226,23 @@ function moveSnake(snake) {
     if (snake.cells.length > snake.maxCells) {
         snake.cells.pop();
     }
-}
 
-function drawSnake(ctx, snake, color) {
-    ctx.fillStyle = color;
-    
-    // Draw snake body
-    snake.cells.forEach((cell, index) => {
-        const x = cell.x * gridSize;
-        const y = cell.y * gridSize;
-        
-        if (index === 0) {
-            // Draw head
-            ctx.fillStyle = color.replace('ff', 'cc');
-        } else {
-            ctx.fillStyle = color;
-        }
-        
-        // Draw rounded rectangle for each segment
-        ctx.beginPath();
-        if (index === 0) {
-            // Head segment
-            ctx.arc(x + gridSize/2, y + gridSize/2, gridSize/2, 0, Math.PI * 2);
-        } else {
-            // Body segment - connect to previous segment
-            const prev = snake.cells[index - 1];
-            const next = snake.cells[index + 1];
-            
-            // Draw rounded segment
-            ctx.arc(x + gridSize/2, y + gridSize/2, gridSize/2, 0, Math.PI * 2);
-            
-            // Connect to previous segment
-            if (prev) {
-                const midX = (x + prev.x * gridSize) / 2;
-                const midY = (y + prev.y * gridSize) / 2;
-                ctx.fillRect(midX, y, gridSize, gridSize);
+    // Check for self collision
+    for (let i = 1; i < snake.cells.length; i++) {
+        if (snake.x === snake.cells[i].x && snake.y === snake.cells[i].y) {
+            if (snake === snake1) {
+                player1Lost = true;
+                snake1.active = false;
+            } else {
+                player2Lost = true;
+                snake2.active = false;
             }
+            return;
         }
-        ctx.fill();
-    });
-}
-
-function drawFood() {
-    // Draw circular food
-    [
-        {ctx: ctx1, food: food1},
-        {ctx: ctx2, food: food2}
-    ].forEach(({ctx, food}) => {
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath();
-        ctx.arc(
-            food.x * gridSize + gridSize/2,
-            food.y * gridSize + gridSize/2,
-            gridSize/2 - 2,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-    });
+    }
 }
 
 function checkCollisions() {
-    // Check for self collision - Snake 1
-    if (snake1.active) {
-        for (let i = 1; i < snake1.cells.length; i++) {
-            if (snake1.x === snake1.cells[i].x && snake1.y === snake1.cells[i].y) {
-                player1Lost = true;
-                snake1.active = false;
-                break;
-            }
-        }
-    }
-
-    // Check for self collision - Snake 2
-    if (snake2.active) {
-        for (let i = 1; i < snake2.cells.length; i++) {
-            if (snake2.x === snake2.cells[i].x && snake2.y === snake2.cells[i].y) {
-                player2Lost = true;
-                snake2.active = false;
-                break;
-            }
-        }
-    }
-
     // Check for food collision
     if (snake1.active && snake1.x === food1.x && snake1.y === food1.y) {
         snake1.maxCells++;
@@ -348,3 +338,4 @@ function resetGame() {
 
 // Initialize the game
 resetGame();
+
