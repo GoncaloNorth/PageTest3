@@ -58,8 +58,6 @@ const food2 = {
 
 // Event listeners for controls
 document.addEventListener('keydown', function(e) {
-    console.log('Key pressed:', e.key); // Debug log
-    
     // Snake 1 (WASD)
     if (e.key === 'w' && snake1.dy === 0) {
         snake1.dy = -1;
@@ -355,7 +353,7 @@ function showFinalGameOver() {
         <h2 style="font-size: 32px; margin-bottom: 20px;">${winnerText}</h2>
         <p style="font-size: 20px; margin-bottom: 30px;">Final Score: ${score1} - ${score2}</p>
         <div style="display: flex; justify-content: center; gap: 20px;">
-            <button onclick="window.location.href='/'" style="padding: 10px 20px; font-size: 18px; background: #4CAF50; border: none; color: white; cursor: pointer; border-radius: 5px;">Home</button>
+            <button onclick="window.location.href='../index.html'" style="padding: 10px 20px; font-size: 18px; background: #4CAF50; border: none; color: white; cursor: pointer; border-radius: 5px;">Home</button>
             <button onclick="resetGame(); document.body.removeChild(this.parentElement.parentElement);" style="padding: 10px 20px; font-size: 18px; background: #2196F3; border: none; color: white; cursor: pointer; border-radius: 5px;">Rematch</button>
         </div>
     `;
